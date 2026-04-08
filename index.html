@@ -11,15 +11,14 @@
         .store-logo { max-width: 150px; margin-bottom: 15px; display: none; margin-left: auto; margin-right: auto; border-radius: 8px; }
         .version-tag { font-size: 10px; color: #bbb; margin-top: 5px; text-transform: uppercase; letter-spacing: 1px; }
         .search-bar { width: 100%; padding: 14px; border-radius: 25px; border: 1px solid #ddd; box-sizing: border-box; margin-bottom: 10px; font-size: 16px; outline: none; -webkit-appearance: none; }
-        .btn-refresh { background: #fff; border: 1px solid var(--accent); color: var(--accent); padding: 10px 20px; border-radius: 20px; font-size: 0.85em; font-weight: bold; cursor: pointer; margin-bottom: 20px; transition: 0.2s; }
-        .btn-refresh:active { opacity: 0.6; }
+        .btn-refresh { background: #fff; border: 1px solid var(--accent); color: var(--accent); padding: 10px 20px; border-radius: 20px; font-size: 0.85em; font-weight: bold; cursor: pointer; margin-bottom: 20px; transition: 0.2s; border: 1px solid var(--accent); }
         .wine-card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 3px 10px rgba(0,0,0,0.08); border-top: 6px solid var(--accent); text-align: left; }
         .wine-name { font-weight: bold; display: block; font-size: 1.2em; color: #1a1a1a; margin-bottom: 4px; }
         .db-link { display: inline-block; color: #0066cc; font-size: 0.9em; text-decoration: none; margin-bottom: 15px; }
         .toggle-group { display: flex; gap: 10px; margin-bottom: 15px; }
         .btn-toggle { flex: 1; padding: 15px; border: 1px solid #eee; border-radius: 10px; background: #fafafa; cursor: pointer; font-size: 1em; -webkit-tap-highlight-color: transparent; }
-        .active-like { background-color: #2e7d32 !important; color: white !important; font-weight: bold; border-color: #2e7d32; }
-        .active-maybe { background-color: #f9a825 !important; color: white !important; font-weight: bold; border-color: #f9a825; }
+        .active-like { background-color: #2e7d32 !important; color: white !important; font-weight: bold; }
+        .active-maybe { background-color: #f9a825 !important; color: white !important; font-weight: bold; }
         textarea { width: 100%; border: 1px solid #eee; border-radius: 10px; padding: 12px; box-sizing: border-box; font-size: 16px; font-family: inherit; background: #fff; min-height: 100px; resize: none; outline: none; }
         .footer { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 15px; z-index: 1000; box-shadow: 0 -4px 15px rgba(0,0,0,0.1); }
         .footer-content { max-width: 600px; margin: auto; }
@@ -35,7 +34,7 @@
     <header>
         <img id="logo" class="store-logo" src="" alt="Logo">
         <h1 id="store-name-display" style="color:var(--accent); margin:0;">Vault</h1>
-        <div class="version-tag">Engine v25.0 • <span id="timestamp"></span></div>
+        <div class="version-tag">Engine v25.1 • <span id="timestamp"></span></div>
         <div style="margin-top: 15px;">
             <input type="text" id="search" oninput="render()" class="search-bar" placeholder="🔍 Search wines...">
             <button class="btn-refresh" onclick="manualRefresh()">🔄 Update List & Reset Notes</button>
@@ -61,8 +60,8 @@
     const urlParams = new URLSearchParams(window.location.search);
     const SHEET_KEY = urlParams.get('id');
     
-    // Tab Names must be exact
-    const SETTINGS_TAB = "Settings";
+    // Using your Template Settings GID
+    const SETTINGS_GID = '1010402997'; 
 
     let storeName = "Vault";
     let wineList = [];
@@ -70,7 +69,7 @@
 
     async function init() {
         if (!SHEET_KEY) {
-            document.body.innerHTML = "<h2 style='text-align:center;margin-top:50px;'>No Sheet ID found in URL.</h2>";
+            document.body.innerHTML = "<h2 style='text-align:center;margin-top:50px;'>No Sheet ID found.</h2>";
             document.body.style.display = 'block';
             return;
         }
@@ -86,18 +85,12 @@
 
     async function loadData() {
         try {
-            // 1. LOAD WINES (Always GID 0 / First Tab)
-            // Replace this number with the GID of the "Settings" tab in your template
-            // Replace 1010402997 with whatever number is actually in your browser for that tab
-            const settingsUrl = `https://docs.google.com/spreadsheets/d/e/${SHEET_KEY}/pub?output=csv&gid=1010402997&cb=${Date.now()}`;
-            //const SETTINGS_GID = '1010402997'; 
-            //const settingsUrl = `https://docs.google.com/spreadsheets/d/e/${SHEET_KEY}/pub?output=csv&gid=${SETTINGS_GID}&cb=${Date.now()}`;
+            // 1. LOAD WINES (Always GID 0)
             const wineUrl = `https://docs.google.com/spreadsheets/d/e/${SHEET_KEY}/pub?output=csv&gid=0&cb=${Date.now()}`;
             const wineRes = await fetch(wineUrl);
             const wineText = await wineRes.text();
             const wineData = parseCSV(wineText);
             
-            // Skip header row, filter empty, and ensure we don't accidentally pull settings keys
             const keysToAvoid = ["Store Name", "Accent Color", "Logo URL", "Wine Name"];
             wineList = wineData.slice(1)
                 .filter(cols => cols[0] && !keysToAvoid.includes(cols[0]))
@@ -107,8 +100,8 @@
                     link: cols[1] || ""
                 }));
 
-            // 2. LOAD SETTINGS (By Name)
-          const settingsUrl = `https://docs.google.com/spreadsheets/d/e/${SHEET_KEY}/pub?output=csv&gid=1010402997&cb=${Date.now()}`;
+            // 2. LOAD SETTINGS (Using GID)
+            const settingsUrl = `https://docs.google.com/spreadsheets/d/e/${SHEET_KEY}/pub?output=csv&gid=${SETTINGS_GID}&cb=${Date.now()}`;
             const settingsRes = await fetch(settingsUrl);
             const settingsText = await settingsRes.text();
             const settingsData = parseCSV(settingsText);
@@ -133,7 +126,6 @@
                 img.style.display = 'block';
             }
 
-            // Sync User State
             state = JSON.parse(localStorage.getItem('vault_' + SHEET_KEY)) || {};
             document.getElementById('timestamp').innerText = "Sync: " + new Date().toLocaleTimeString();
             render();
@@ -178,7 +170,7 @@
     };
 
     window.manualRefresh = async function() {
-        if(confirm("Refresh list? (This clears your current ratings/notes)")) {
+        if(confirm("Refresh list?")) {
             localStorage.removeItem('vault_' + SHEET_KEY);
             state = {};
             await loadData();
@@ -187,13 +179,13 @@
     }
 
     function generateReport() {
-        let body = `${storeName.toUpperCase()} - MY TASTING REPORT\n--------------------------\n\n`;
+        let body = `${storeName.toUpperCase()} - MY TASTING REPORT\n\n`;
         let count = 0;
         wineList.forEach(wine => {
             const d = state[wine.id];
             if(d && (d.s || d.n)) {
                 count++;
-                body += `🍷 ${wine.name.toUpperCase()}\nRATING: ${d.s === 'L' ? 'LIKE' : (d.s === 'M' ? 'MAYBE' : 'NONE')}\nNOTE: ${d.n || '-'}\n${wine.link ? 'Reorder: ' + wine.link : ''}\n\n`;
+                body += `🍷 ${wine.name.toUpperCase()}\nRATING: ${d.s === 'L' ? 'LIKE' : (d.s === 'M' ? 'MAYBE' : 'NONE')}\nNOTE: ${d.n || '-'}\n\n`;
             }
         });
         return { body, count };
@@ -201,14 +193,14 @@
 
     window.copyToClipboard = function() {
         const r = generateReport();
-        if(r.count === 0) return alert("No notes to copy!");
-        navigator.clipboard.writeText(r.body).then(() => alert("Notes copied to clipboard!"));
+        if(r.count === 0) return alert("No notes!");
+        navigator.clipboard.writeText(r.body).then(() => alert("Copied!"));
     }
 
     window.sendEmail = function() {
         const r = generateReport();
-        if(r.count === 0) return alert("No notes to email!");
-        window.location.href = `mailto:?subject=My ${storeName} Tasting Notes&body=${encodeURIComponent(r.body)}`;
+        if(r.count === 0) return alert("No notes!");
+        window.location.href = `mailto:?subject=My Tasting Notes&body=${encodeURIComponent(r.body)}`;
     };
 
     init();
