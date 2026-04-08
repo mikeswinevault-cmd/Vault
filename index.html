@@ -112,10 +112,14 @@
             });
 
             // Apply Branding
+            // Apply Branding
             if (settings['Store Name']) {
                 storeName = settings['Store Name'];
-                document.getElementById('store-name-display').innerText = storeName;
-                document.getElementById('page-title').innerText = storeName + " Vault";
+                // This line adds the Event Date if it exists
+                const displayTitle = settings['Event Date'] ? `${storeName}: ${settings['Event Date']}` : storeName;
+                
+                document.getElementById('store-name-display').innerText = displayTitle;
+                document.getElementById('page-title').innerText = displayTitle + " Vault";
             }
             if (settings['Accent Color']) {
                 document.documentElement.style.setProperty('--accent', settings['Accent Color']);
