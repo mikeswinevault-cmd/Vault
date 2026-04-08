@@ -103,7 +103,7 @@
                 }));
 
             // 2. LOAD SETTINGS (By Name)
-            const settingsUrl = `https://docs.google.com/spreadsheets/d/e/${SHEET_KEY}/pub?output=csv&sheet=${encodeURIComponent(SETTINGS_TAB)}&cb=${Date.now()}`;
+          const settingsUrl = `https://docs.google.com/spreadsheets/d/e/${SHEET_KEY}/pub?output=csv&gid=1010402997&cb=${Date.now()}`;
             const settingsRes = await fetch(settingsUrl);
             const settingsText = await settingsRes.text();
             const settingsData = parseCSV(settingsText);
