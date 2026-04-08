@@ -82,39 +82,55 @@
 
     async function loadData() {
         try {
-            // 1. Load Settings
+            // 1. Load Settings first
             const settingsText = await fetchData(SETTINGS_TAB_NAME);
+            const settingsRows = settingsText.split(/\r?\n/);
             const settings = {};
-            settingsText.split(/\r?\n/).forEach(r => {
+            
+            settingsRows.forEach(r => {
                 const cols = r.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-                if(cols[0] && cols[1]) settings[cols[0].trim()] = cols[1].replace(/"/g, '').trim();
+                if(cols[0] && cols[1]) {
+                    const key = cols[0].trim().replace(/"/g, '');
+                    const val = cols[1].trim().replace(/"/g, '');
+                    settings[key] = val;
+                }
             });
 
+            // Apply Branding
             if(settings['Store Name']) {
                 storeName = settings['Store Name'];
                 document.getElementById('store-name-display').innerText = storeName;
                 document.getElementById('page-title').innerText = storeName + " Vault";
             }
-            if(settings['Accent Color']) document.documentElement.style.setProperty('--accent', settings['Accent Color']);
+            if(settings['Accent Color']) {
+                document.documentElement.style.setProperty('--accent', settings['Accent Color']);
+            }
             if(settings['Logo URL']) {
                 const img = document.getElementById('logo');
                 img.src = settings['Logo URL'];
                 img.style.display = 'inline-block';
             }
 
-            // 2. Load Wines
+            // 2. Load Wines second (and ONLY from the Wines tab)
             const wineText = await fetchData(WINE_TAB_NAME);
-            wineList = wineText.split(/\r?\n/).slice(1).map((r, i) => {
+            const wineRows = wineText.split(/\r?\n/);
+            
+            // Skip the first row (header) and map the rest
+            wineList = wineRows.slice(1).map((r, i) => {
                 const cols = r.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-                return { id: "w_" + i, name: cols[0]?.replace(/"/g, '').trim(), link: cols[1]?.replace(/"/g, '').trim() };
-            }).filter(w => w.name);
+                return { 
+                    id: "w_" + i, 
+                    name: cols[0]?.replace(/"/g, '').trim(), 
+                    link: cols[1]?.replace(/"/g, '').trim() 
+                };
+            }).filter(w => w.name && w.name !== "Wine Name"); // Extra filter to ensure no headers leak in
 
             state = JSON.parse(localStorage.getItem('vault_' + SHEET_KEY)) || {};
-            document.getElementById('timestamp').innerText = "Loaded: " + new Date().toLocaleTimeString();
+            document.getElementById('timestamp').innerText = "Updated: " + new Date().toLocaleTimeString();
             render();
+            
         } catch (e) { 
-            console.error(e);
-            alert("Error: Make sure tabs are named 'Settings' and 'Wines' and are Published to Web.");
+            console.error("Data Load Error:", e);
         }
     }
 
