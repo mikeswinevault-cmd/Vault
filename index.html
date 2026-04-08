@@ -1,29 +1,119 @@
-async function loadData() {
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title id="page-title">Loading Vault...</title>
+    <style>
+        :root { --accent: #722f37; --bg: #fdfaf6; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); padding: 20px; padding-bottom: 180px; margin: 0; max-width: 600px; margin: auto; display: none; }
+        header { text-align: center; margin-bottom: 20px; }
+        .store-logo { max-width: 150px; margin-bottom: 15px; display: none; margin-left: auto; margin-right: auto; border-radius: 8px; }
+        .version-tag { font-size: 10px; color: #bbb; margin-top: 5px; text-transform: uppercase; letter-spacing: 1px; }
+        .search-bar { width: 100%; padding: 14px; border-radius: 25px; border: 1px solid #ddd; box-sizing: border-box; margin-bottom: 10px; font-size: 16px; outline: none; -webkit-appearance: none; }
+        .btn-refresh { background: #fff; border: 1px solid var(--accent); color: var(--accent); padding: 10px 20px; border-radius: 20px; font-size: 0.85em; font-weight: bold; cursor: pointer; margin-bottom: 20px; transition: 0.2s; }
+        .btn-refresh:active { opacity: 0.6; }
+        .wine-card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 3px 10px rgba(0,0,0,0.08); border-top: 6px solid var(--accent); text-align: left; }
+        .wine-name { font-weight: bold; display: block; font-size: 1.2em; color: #1a1a1a; margin-bottom: 4px; }
+        .db-link { display: inline-block; color: #0066cc; font-size: 0.9em; text-decoration: none; margin-bottom: 15px; }
+        .toggle-group { display: flex; gap: 10px; margin-bottom: 15px; }
+        .btn-toggle { flex: 1; padding: 15px; border: 1px solid #eee; border-radius: 10px; background: #fafafa; cursor: pointer; font-size: 1em; -webkit-tap-highlight-color: transparent; }
+        .active-like { background-color: #2e7d32 !important; color: white !important; font-weight: bold; border-color: #2e7d32; }
+        .active-maybe { background-color: #f9a825 !important; color: white !important; font-weight: bold; border-color: #f9a825; }
+        textarea { width: 100%; border: 1px solid #eee; border-radius: 10px; padding: 12px; box-sizing: border-box; font-size: 16px; font-family: inherit; background: #fff; min-height: 100px; resize: none; outline: none; }
+        .footer { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 15px; z-index: 1000; box-shadow: 0 -4px 15px rgba(0,0,0,0.1); }
+        .footer-content { max-width: 600px; margin: auto; }
+        .btn-group { display: flex; gap: 10px; margin-bottom: 12px; }
+        .btn-email { background: var(--accent); color: white; border: none; padding: 18px; border-radius: 12px; flex: 2; font-weight: bold; font-size: 1.1em; cursor: pointer; }
+        .btn-copy { background: #eee; color: #444; border: none; padding: 18px; border-radius: 12px; flex: 1; font-weight: bold; font-size: 0.9em; cursor: pointer; }
+        .privacy-statement { font-size: 11px; color: #888; text-align: center; line-height: 1.4; padding: 0 5px; }
+    </style>
+</head>
+<body>
+
+<div id="app-content">
+    <header>
+        <img id="logo" class="store-logo" src="" alt="Logo">
+        <h1 id="store-name-display" style="color:var(--accent); margin:0;">Vault</h1>
+        <div class="version-tag">Engine v25.0 • <span id="timestamp"></span></div>
+        <div style="margin-top: 15px;">
+            <input type="text" id="search" oninput="render()" class="search-bar" placeholder="🔍 Search wines...">
+            <button class="btn-refresh" onclick="manualRefresh()">🔄 Update List & Reset Notes</button>
+        </div>
+    </header>
+
+    <div id="container"></div>
+
+    <div class="footer">
+        <div class="footer-content">
+            <div class="btn-group">
+                <button class="btn-copy" onclick="copyToClipboard()">📋 Copy</button>
+                <button class="btn-email" onclick="sendEmail()">📧 Email Report</button>
+            </div>
+            <div class="privacy-statement">
+                <strong>Privacy Policy:</strong> We do not collect anything. We do not collect your wine selections or email. We do not share anything with anyone.
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const SHEET_KEY = urlParams.get('id');
+    
+    // Tab Names must be exact
+    const SETTINGS_TAB = "Settings";
+
+    let storeName = "Vault";
+    let wineList = [];
+    let state = {};
+
+    async function init() {
+        if (!SHEET_KEY) {
+            document.body.innerHTML = "<h2 style='text-align:center;margin-top:50px;'>No Sheet ID found in URL.</h2>";
+            document.body.style.display = 'block';
+            return;
+        }
+        await loadData();
+        document.body.style.display = 'block';
+    }
+
+    function parseCSV(text) {
+        return text.split(/\r?\n/).map(row => {
+            return row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(col => col.replace(/^"|"$/g, '').trim());
+        });
+    }
+
+    async function loadData() {
         try {
-            // 1. UNIVERSAL WINE LOAD (Always the first tab)
+            // 1. LOAD WINES (Always GID 0 / First Tab)
             const wineUrl = `https://docs.google.com/spreadsheets/d/e/${SHEET_KEY}/pub?output=csv&gid=0&cb=${Date.now()}`;
             const wineRes = await fetch(wineUrl);
             const wineText = await wineRes.text();
             const wineData = parseCSV(wineText);
             
-            wineList = wineData.slice(1).filter(cols => cols[0] && cols[0] !== "Wine Name").map((cols, i) => ({
-                id: "w_" + i,
-                name: cols[0],
-                link: cols[1] || ""
-            }));
+            // Skip header row, filter empty, and ensure we don't accidentally pull settings keys
+            const keysToAvoid = ["Store Name", "Accent Color", "Logo URL", "Wine Name"];
+            wineList = wineData.slice(1)
+                .filter(cols => cols[0] && !keysToAvoid.includes(cols[0]))
+                .map((cols, i) => ({
+                    id: "w_" + i,
+                    name: cols[0],
+                    link: cols[1] || ""
+                }));
 
-            // 2. SMART SETTINGS LOAD (Finds the tab named "Settings" automatically)
-            const settingsUrl = `https://docs.google.com/spreadsheets/d/e/${SHEET_KEY}/pub?output=csv&sheet=Settings&cb=${Date.now()}`;
+            // 2. LOAD SETTINGS (By Name)
+            const settingsUrl = `https://docs.google.com/spreadsheets/d/e/${SHEET_KEY}/pub?output=csv&sheet=${encodeURIComponent(SETTINGS_TAB)}&cb=${Date.now()}`;
             const settingsRes = await fetch(settingsUrl);
             const settingsText = await settingsRes.text();
             const settingsData = parseCSV(settingsText);
             const settings = {};
             
             settingsData.forEach(cols => {
-                if (cols[0] && cols[1]) settings[cols[0].trim()] = cols[1].trim();
+                if (cols[0] && cols[1]) settings[cols[0]] = cols[1];
             });
 
-            // Apply the "Napa" or "Ansonia" Branding
+            // Apply Branding
             if (settings['Store Name']) {
                 storeName = settings['Store Name'];
                 document.getElementById('store-name-display').innerText = storeName;
@@ -32,12 +122,13 @@ async function loadData() {
             if (settings['Accent Color']) {
                 document.documentElement.style.setProperty('--accent', settings['Accent Color']);
             }
-            if (settings['Logo URL']) {
+            if (settings['Logo URL'] && settings['Logo URL'].startsWith('http')) {
                 const img = document.getElementById('logo');
                 img.src = settings['Logo URL'];
                 img.style.display = 'block';
             }
 
+            // Sync User State
             state = JSON.parse(localStorage.getItem('vault_' + SHEET_KEY)) || {};
             document.getElementById('timestamp').innerText = "Sync: " + new Date().toLocaleTimeString();
             render();
@@ -45,3 +136,77 @@ async function loadData() {
             console.error("Data Load Error", e);
         }
     }
+
+    function render() {
+        const term = document.getElementById('search').value.toLowerCase();
+        const container = document.getElementById('container');
+        let html = '';
+        
+        wineList.forEach(wine => {
+            if (!wine.name.toLowerCase().includes(term)) return;
+            const s = state[wine.id] || { s: null, n: "" };
+            html += `
+                <div class="wine-card">
+                    <span class="wine-name">${wine.name}</span>
+                    ${wine.link ? `<a href="${wine.link}" target="_blank" class="db-link">Details & Reorder →</a>` : ''}
+                    <div class="toggle-group">
+                        <button class="btn-toggle ${s.s === 'L' ? 'active-like' : ''}" onclick="saveChoice('${wine.id}','L')">👍 Like</button>
+                        <button class="btn-toggle ${s.s === 'M' ? 'active-maybe' : ''}" onclick="saveChoice('${wine.id}','M')">🤔 Maybe</button>
+                    </div>
+                    <textarea oninput="saveNote('${wine.id}', this.value)" placeholder="Tasting notes...">${s.n}</textarea>
+                </div>`;
+        });
+        container.innerHTML = html || '<p style="text-align:center; color:#888; margin-top:40px;">No wines found.</p>';
+    }
+
+    window.saveChoice = function(id, val) {
+        if(!state[id]) state[id] = { s: null, n: "" };
+        state[id].s = (state[id].s === val) ? null : val;
+        localStorage.setItem('vault_' + SHEET_KEY, JSON.stringify(state));
+        render();
+    };
+
+    window.saveNote = function(id, txt) {
+        if(!state[id]) state[id] = { s: null, n: "" };
+        state[id].n = txt;
+        localStorage.setItem('vault_' + SHEET_KEY, JSON.stringify(state));
+    };
+
+    window.manualRefresh = async function() {
+        if(confirm("Refresh list? (This clears your current ratings/notes)")) {
+            localStorage.removeItem('vault_' + SHEET_KEY);
+            state = {};
+            await loadData();
+            window.scrollTo(0,0);
+        }
+    }
+
+    function generateReport() {
+        let body = `${storeName.toUpperCase()} - MY TASTING REPORT\n--------------------------\n\n`;
+        let count = 0;
+        wineList.forEach(wine => {
+            const d = state[wine.id];
+            if(d && (d.s || d.n)) {
+                count++;
+                body += `🍷 ${wine.name.toUpperCase()}\nRATING: ${d.s === 'L' ? 'LIKE' : (d.s === 'M' ? 'MAYBE' : 'NONE')}\nNOTE: ${d.n || '-'}\n${wine.link ? 'Reorder: ' + wine.link : ''}\n\n`;
+            }
+        });
+        return { body, count };
+    }
+
+    window.copyToClipboard = function() {
+        const r = generateReport();
+        if(r.count === 0) return alert("No notes to copy!");
+        navigator.clipboard.writeText(r.body).then(() => alert("Notes copied to clipboard!"));
+    }
+
+    window.sendEmail = function() {
+        const r = generateReport();
+        if(r.count === 0) return alert("No notes to email!");
+        window.location.href = `mailto:?subject=My ${storeName} Tasting Notes&body=${encodeURIComponent(r.body)}`;
+    };
+
+    init();
+</script>
+</body>
+</html>
