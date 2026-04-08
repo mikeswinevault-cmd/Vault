@@ -87,6 +87,9 @@
     async function loadData() {
         try {
             // 1. LOAD WINES (Always GID 0 / First Tab)
+            // Replace this number with the GID of the "Settings" tab in your template
+            const SETTINGS_GID = '1010402997'; 
+            const settingsUrl = `https://docs.google.com/spreadsheets/d/e/${SHEET_KEY}/pub?output=csv&gid=${SETTINGS_GID}&cb=${Date.now()}`;
             const wineUrl = `https://docs.google.com/spreadsheets/d/e/${SHEET_KEY}/pub?output=csv&gid=0&cb=${Date.now()}`;
             const wineRes = await fetch(wineUrl);
             const wineText = await wineRes.text();
