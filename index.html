@@ -75,9 +75,8 @@
     const SHEET_KEY = urlParams.get('id');
     
     // GIDs: Update these if you change your Master Template order
-    const WINE_GID = '0'; 
-    const SETTINGS_GID = '141014522'; 
-
+const SETTINGS_GID = '0'; // The first tab is always 0
+const WINE_GID = 'YOUR_WINE_TAB_GID'; // Click the wine tab and get the ID from the URL
     let storeName = "Vault";
     let wineList = [];
     let state = {};
