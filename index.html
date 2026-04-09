@@ -11,8 +11,19 @@
         .store-logo { max-width: 150px; margin-bottom: 15px; display: none; margin-left: auto; margin-right: auto; border-radius: 8px; }
         .version-tag { font-size: 10px; color: #bbb; margin-top: 5px; text-transform: uppercase; letter-spacing: 1px; }
         
-        /* Updated Input Styling */
-        .search-bar { width: 100%; padding: 14px; border-radius: 25px; border: 1px solid #ddd; box-sizing: border-box; margin-bottom: 20px; font-size: 16px; outline: none; text-align: center; }
+        /* Updated Search Bar: Left Aligned with standard padding */
+        .search-bar { 
+            width: 100%; 
+            padding: 14px 20px; 
+            border-radius: 25px; 
+            border: 1px solid #ddd; 
+            box-sizing: border-box; 
+            margin-bottom: 20px; 
+            font-size: 16px; 
+            outline: none; 
+            text-align: left; /* Left align text */
+            -webkit-appearance: none;
+        }
         
         .wine-card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 3px 10px rgba(0,0,0,0.08); border-top: 6px solid var(--accent); position: relative; }
         .wine-name { font-weight: bold; display: block; font-size: 1.2em; color: #1a1a1a; margin-bottom: 8px; }
@@ -52,8 +63,8 @@
     <header>
         <img id="logo" class="store-logo" src="" alt="Logo">
         <h1 id="store-name-display" style="color:var(--accent); margin:0;">Vault</h1>
-        <div class="version-tag">Engine v29.1</div>
-        <input type="text" id="search" oninput="render()" class="search-bar" placeholder="focus ... just type a letter">
+        <div class="version-tag">Engine v29.2</div>
+        <input type="text" id="search" oninput="render()" class="search-bar" placeholder="🔍 focus ... just type a letter or two">
     </header>
 
     <div id="container"></div>
