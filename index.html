@@ -40,7 +40,7 @@
 
 <div id="modal-overlay" onclick="closeModal()">
     <div class="modal-card" onclick="event.stopPropagation()">
-        <div id="modal-wine-name" class="modal-header">Details</div>
+        <div id="modal-wine-name" class="modal-header">Wine Details</div>
         <div id="modal-data" class="data-grid"></div>
         <button class="btn-close" onclick="closeModal()">Return to Vault</button>
     </div>
@@ -50,7 +50,7 @@
     <header>
         <img id="logo" class="store-logo" src="" alt="Logo">
         <h1 id="store-name-display" style="color:var(--accent); margin:0;">Vault</h1>
-        <div class="version-tag">Engine v35.0</div>
+        <div class="version-tag">Engine v35.1</div>
         <input type="text" id="search" oninput="render()" class="search-bar" placeholder="🔍 focus ... just type a letter or two">
     </header>
 
@@ -81,12 +81,8 @@
 
     async function init() {
         if (!SHEET_KEY) return;
-        // Attempt to load from cache immediately for "instant" feel
         const cached = localStorage.getItem('cache_' + SHEET_KEY);
-        if (cached) {
-            const data = JSON.parse(cached);
-            applyData(data);
-        }
+        if (cached) applyData(JSON.parse(cached));
         await loadData();
     }
 
@@ -97,24 +93,18 @@
     async function loadData() {
         const baseUrl = `https://docs.google.com/spreadsheets/d/e/${SHEET_KEY}/pub?output=csv`;
         try {
-            const responses = await Promise.all([
+            const res = await Promise.all([
                 fetch(`${baseUrl}&gid=${SETTINGS_GID}`),
                 fetch(`${baseUrl}&gid=0`),
                 fetch(`${baseUrl}&gid=${DESCRIPTORS_GID}`)
             ]);
-
-            const setText = await responses[0].text();
-            const wineText = await responses[1].text();
-            const descText = await responses[2].text();
-
-            const freshData = { setText, wineText, descText, ts: Date.now() };
+            const freshData = { setText: await res[0].text(), wineText: await res[1].text(), descText: await res[2].text() };
             localStorage.setItem('cache_' + SHEET_KEY, JSON.stringify(freshData));
             applyData(freshData);
         } catch (e) { console.error(e); }
     }
 
     function applyData(data) {
-        // 1. Settings
         const settings = {};
         parseCSV(data.setText).forEach(cols => { if (cols[0] && cols[1]) settings[cols[0]] = cols[1]; });
         if (settings['Store Name']) {
@@ -128,12 +118,10 @@
             img.src = settings['Logo URL']; img.style.display = 'block';
         }
 
-        // 2. Wines
         wineList = parseCSV(data.wineText).slice(1).filter(cols => cols[0] && cols[0] !== "Wine Name").map((cols, i) => ({
             id: "w_" + i, name: cols[0], link: cols[1] || ""
         }));
 
-        // 3. Descriptors
         const dData = parseCSV(data.descText);
         if(dData.length > 0) {
             descHeaders = dData[0].slice(2, 8); 
@@ -141,7 +129,6 @@
                 if (cols[0]) descriptorsMap[cols[0].toLowerCase()] = cols.slice(2, 8);
             });
         }
-
         state = JSON.parse(localStorage.getItem('vault_' + SHEET_KEY)) || {};
         render();
     }
@@ -152,7 +139,9 @@
         document.getElementById('modal-wine-name').innerText = wineName;
         let html = '';
         data.forEach((val, idx) => {
-            if(val && val.trim() !== "") html += `<div class="data-item"><span class="data-label">${descHeaders[idx]}</span>${val}</div>`;
+            if(val && val.trim() !== "" && val.toLowerCase() !== "n/a") {
+                html += `<div class="data-item"><span class="data-label">${descHeaders[idx]}</span>${val}</div>`;
+            }
         });
         document.getElementById('modal-data').innerHTML = html;
         document.getElementById('modal-overlay').style.display = 'flex';
@@ -168,19 +157,18 @@
             if (!wine.name.toLowerCase().includes(term)) return;
             const s = state[wine.id] || { s: null, n: "" };
             const hasDesc = descriptorsMap[wine.name.toLowerCase()];
-            html += `
-                <div class="wine-card">
-                    <span class="wine-name">${wine.name}</span>
-                    <div class="link-row">
-                        <a href="${wine.link}" target="_blank" class="db-link">Details & Reorder →</a>
-                        ${hasDesc ? `<button onclick="openDescriptors('${wine.name.replace(/'/g, "\\'")}')" class="desc-trigger">Descriptors →</button>` : ''}
-                    </div>
-                    <div class="toggle-group">
-                        <button class="btn-toggle ${s.s === 'L' ? 'active-like' : ''}" onclick="saveChoice('${wine.id}','L')">👍 Like</button>
-                        <button class="btn-toggle ${s.s === 'M' ? 'active-maybe' : ''}" onclick="saveChoice('${wine.id}','M')">🤔 Maybe</button>
-                    </div>
-                    <textarea oninput="saveNote('${wine.id}', this.value)" placeholder="Tasting notes...">${s.n}</textarea>
-                </div>`;
+            html += `<div class="wine-card">
+                <span class="wine-name">${wine.name}</span>
+                <div class="link-row">
+                    <a href="${wine.link}" target="_blank" class="db-link">Details & Reorder →</a>
+                    ${hasDesc ? `<button onclick="openDescriptors('${wine.name.replace(/'/g, "\\'")}')" class="desc-trigger">Descriptors →</button>` : ''}
+                </div>
+                <div class="toggle-group">
+                    <button class="btn-toggle ${s.s === 'L' ? 'active-like' : ''}" onclick="saveChoice('${wine.id}','L')">👍 Like</button>
+                    <button class="btn-toggle ${s.s === 'M' ? 'active-maybe' : ''}" onclick="saveChoice('${wine.id}','M')">🤔 Maybe</button>
+                </div>
+                <textarea oninput="saveNote('${wine.id}', this.value)" placeholder="Tasting notes...">${s.n}</textarea>
+            </div>`;
         });
         container.innerHTML = html || '<p style="text-align:center; color:#888;">No wines found.</p>';
     }
@@ -207,31 +195,19 @@
     window.sendEmail = function() {
         const r = generateReport();
         if(r.count === 0) return alert("No notes to email!");
-        // We use the Store Name in the Subject Line for extra branding
         window.location.href = `mailto:?subject=My ${currentStore} Tasting Notes&body=${encodeURIComponent(r.reportText)}`;
     };
 
     function generateReport() {
-        // This creates a "Text Logo" header for the email/clipboard
-        let reportText = `==========================\n`;
-        reportText += `${currentStore.toUpperCase()} VINE VAULT\n`;
-        reportText += `Tasting Report - ${new Date().toLocaleDateString()}\n`;
-        reportText += `==========================\n\n`;
-        
+        let reportText = `==========================\n${currentStore.toUpperCase()} VINE VAULT\nReport - ${new Date().toLocaleDateString()}\n==========================\n\n`;
         let count = 0;
         wineList.forEach(wine => {
             const d = state[wine.id];
             if(d && (d.s || d.n)) {
                 count++;
-                const rating = d.s === 'L' ? 'LIKE 👍' : (d.s === 'M' ? 'MAYBE 🤔' : 'N/A');
-                reportText += `🍷 ${wine.name.toUpperCase()}\n`;
-                reportText += `RATING: ${rating}\n`;
-                if(d.n) reportText += `MY NOTES: ${d.n}\n`;
-                if(wine.link) reportText += `REORDER: ${wine.link}\n`;
-                reportText += `--------------------------\n\n`;
+                reportText += `🍷 ${wine.name.toUpperCase()}\nRATING: ${d.s==='L'?'LIKE 👍':(d.s==='M'?'MAYBE 🤔':'N/A')}\n${d.n ? 'NOTE: '+d.n+'\n' : ''}${wine.link ? 'REORDER: '+wine.link+'\n' : ''}--------------------------\n\n`;
             }
         });
-        
         return { reportText, count };
     }
 
