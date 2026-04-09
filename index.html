@@ -10,23 +10,20 @@
         header { text-align: center; margin-bottom: 20px; }
         .store-logo { max-width: 150px; margin-bottom: 15px; display: none; margin-left: auto; margin-right: auto; border-radius: 8px; }
         .version-tag { font-size: 10px; color: #bbb; margin-top: 5px; text-transform: uppercase; letter-spacing: 1px; }
-        .search-bar { width: 100%; padding: 14px; border-radius: 25px; border: 1px solid #ddd; box-sizing: border-box; margin-bottom: 20px; font-size: 16px; outline: none; }
+        
+        /* Updated Input Styling */
+        .search-bar { width: 100%; padding: 14px; border-radius: 25px; border: 1px solid #ddd; box-sizing: border-box; margin-bottom: 20px; font-size: 16px; outline: none; text-align: center; }
         
         .wine-card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 3px 10px rgba(0,0,0,0.08); border-top: 6px solid var(--accent); position: relative; }
         .wine-name { font-weight: bold; display: block; font-size: 1.2em; color: #1a1a1a; margin-bottom: 8px; }
-        
-        /* Links Row: Blue and Right Aligned */
         .link-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
         .db-link { color: #0066cc; font-size: 0.85em; text-decoration: none; }
         .desc-trigger { color: #007AFF; font-size: 0.85em; text-decoration: underline; font-weight: bold; cursor: pointer; border: none; background: none; padding: 0; }
-
         .toggle-group { display: flex; gap: 10px; margin-bottom: 15px; }
         .btn-toggle { flex: 1; padding: 15px; border: 1px solid #eee; border-radius: 10px; background: #fafafa; cursor: pointer; font-size: 1em; }
         .active-like { background-color: #2e7d32 !important; color: white !important; font-weight: bold; }
         .active-maybe { background-color: #f9a825 !important; color: white !important; font-weight: bold; }
         textarea { width: 100%; border: 1px solid #eee; border-radius: 10px; padding: 12px; box-sizing: border-box; font-size: 16px; font-family: inherit; background: #fff; min-height: 80px; resize: none; outline: none; }
-        
-        /* Descriptor Modal */
         #modal-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.7); display:none; z-index:2000; align-items:center; justify-content:center; padding: 20px; box-sizing: border-box; }
         .modal-card { background: white; border-radius: 15px; width: 100%; max-width: 500px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
         .modal-header { font-weight: bold; font-size: 1.2em; margin-bottom: 20px; color: var(--accent); border-bottom: 1px solid #eee; padding-bottom: 10px; }
@@ -34,8 +31,6 @@
         .data-item { font-size: 14px; line-height: 1.4; color: #333; }
         .data-label { font-weight: bold; display: block; text-transform: uppercase; font-size: 10px; color: #888; letter-spacing: 0.5px; margin-bottom: 2px; }
         .btn-close { width: 100%; padding: 15px; background: #444; color: white; border: none; border-radius: 10px; margin-top: 25px; font-weight: bold; cursor: pointer; }
-
-        /* Footer & Privacy */
         .footer { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 15px; z-index: 1000; box-shadow: 0 -4px 15px rgba(0,0,0,0.1); }
         .btn-group { display: flex; gap: 10px; margin-bottom: 12px; max-width: 600px; margin: auto; }
         .btn-email { background: var(--accent); color: white; border: none; padding: 18px; border-radius: 12px; flex: 2; font-weight: bold; font-size: 1.1em; cursor: pointer; }
@@ -57,8 +52,8 @@
     <header>
         <img id="logo" class="store-logo" src="" alt="Logo">
         <h1 id="store-name-display" style="color:var(--accent); margin:0;">Vault</h1>
-        <div class="version-tag">Engine v29.0</div>
-        <input type="text" id="search" oninput="render()" class="search-bar" placeholder="🔍 Search wines...">
+        <div class="version-tag">Engine v29.1</div>
+        <input type="text" id="search" oninput="render()" class="search-bar" placeholder="focus ... just type a letter">
     </header>
 
     <div id="container"></div>
@@ -100,7 +95,6 @@
 
     async function loadData() {
         try {
-            // 1. Settings (Load first to set Branding/Title)
             const setRes = await fetch(`https://docs.google.com/spreadsheets/d/e/${SHEET_KEY}/pub?output=csv&gid=${SETTINGS_GID}&cb=${Date.now()}`);
             if(setRes.ok) {
                 const settings = {};
@@ -117,13 +111,11 @@
                 }
             }
 
-            // 2. Wines
             const wineText = await (await fetch(`https://docs.google.com/spreadsheets/d/e/${SHEET_KEY}/pub?output=csv&gid=0&cb=${Date.now()}`)).text();
             wineList = parseCSV(wineText).slice(1).filter(cols => cols[0] && cols[0] !== "Wine Name").map((cols, i) => ({
                 id: "w_" + i, name: cols[0], link: cols[1] || ""
             }));
 
-            // 3. Descriptors
             const descRes = await fetch(`https://docs.google.com/spreadsheets/d/e/${SHEET_KEY}/pub?output=csv&gid=${DESCRIPTORS_GID}&cb=${Date.now()}`);
             if (descRes.ok) {
                 const descData = parseCSV(await descRes.text());
