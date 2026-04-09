@@ -11,18 +11,22 @@
         .store-logo { max-width: 150px; margin-bottom: 15px; display: none; margin-left: auto; margin-right: auto; border-radius: 8px; }
         .version-tag { font-size: 10px; color: #bbb; margin-top: 5px; text-transform: uppercase; letter-spacing: 1px; }
         .search-bar { width: 100%; padding: 14px; border-radius: 25px; border: 1px solid #ddd; box-sizing: border-box; margin-bottom: 10px; font-size: 16px; outline: none; -webkit-appearance: none; }
-        .btn-refresh { background: #fff; border: 1px solid var(--accent); color: var(--accent); padding: 10px 20px; border-radius: 20px; font-size: 0.85em; font-weight: bold; cursor: pointer; margin-bottom: 20px; transition: 0.2s; border: 1px solid var(--accent); }
+        .btn-refresh { background: #fff; border: 1px solid var(--accent); color: var(--accent); padding: 10px 20px; border-radius: 20px; font-size: 0.85em; font-weight: bold; cursor: pointer; margin-bottom: 20px; border: 1px solid var(--accent); }
         .wine-card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 3px 10px rgba(0,0,0,0.08); border-top: 6px solid var(--accent); text-align: left; }
         .wine-name { font-weight: bold; display: block; font-size: 1.2em; color: #1a1a1a; margin-bottom: 4px; }
-        .db-link { display: inline-block; color: #0066cc; font-size: 0.9em; text-decoration: none; margin-bottom: 15px; }
+        
+        /* Link Styling */
+        .link-row { display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap; }
+        .db-link { color: #0066cc; font-size: 0.9em; text-decoration: none; }
+        .desc-link { color: #5d4037; font-size: 0.9em; text-decoration: none; font-weight: 500; }
+
         .toggle-group { display: flex; gap: 10px; margin-bottom: 15px; }
         .btn-toggle { flex: 1; padding: 15px; border: 1px solid #eee; border-radius: 10px; background: #fafafa; cursor: pointer; font-size: 1em; -webkit-tap-highlight-color: transparent; }
         .active-like { background-color: #2e7d32 !important; color: white !important; font-weight: bold; }
         .active-maybe { background-color: #f9a825 !important; color: white !important; font-weight: bold; }
         textarea { width: 100%; border: 1px solid #eee; border-radius: 10px; padding: 12px; box-sizing: border-box; font-size: 16px; font-family: inherit; background: #fff; min-height: 100px; resize: none; outline: none; }
         .footer { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 15px; z-index: 1000; box-shadow: 0 -4px 15px rgba(0,0,0,0.1); }
-        .footer-content { max-width: 600px; margin: auto; }
-        .btn-group { display: flex; gap: 10px; margin-bottom: 12px; }
+        .btn-group { display: flex; gap: 10px; margin-bottom: 12px; max-width: 600px; margin: auto; }
         .btn-email { background: var(--accent); color: white; border: none; padding: 18px; border-radius: 12px; flex: 2; font-weight: bold; font-size: 1.1em; cursor: pointer; }
         .btn-copy { background: #eee; color: #444; border: none; padding: 18px; border-radius: 12px; flex: 1; font-weight: bold; font-size: 0.9em; cursor: pointer; }
         .privacy-statement { font-size: 11px; color: #888; text-align: center; line-height: 1.4; padding: 0 5px; }
@@ -34,7 +38,7 @@
     <header>
         <img id="logo" class="store-logo" src="" alt="Logo">
         <h1 id="store-name-display" style="color:var(--accent); margin:0;">Vault</h1>
-        <div class="version-tag">Engine v25.1 • <span id="timestamp"></span></div>
+        <div class="version-tag">Engine v26.0 • <span id="timestamp"></span></div>
         <div style="margin-top: 15px;">
             <input type="text" id="search" oninput="render()" class="search-bar" placeholder="🔍 Search wines...">
             <button class="btn-refresh" onclick="manualRefresh()">🔄 Update List & Reset Notes</button>
@@ -60,19 +64,17 @@
     const urlParams = new URLSearchParams(window.location.search);
     const SHEET_KEY = urlParams.get('id');
     
-    // Using your Template Settings GID
+    // Hardcoded GIDs from your template
     const SETTINGS_GID = '1010402997'; 
+    const DESCRIPTORS_GID = '458806725';
 
     let storeName = "Vault";
     let wineList = [];
     let state = {};
+    let descriptorsMap = {};
 
     async function init() {
-        if (!SHEET_KEY) {
-            document.body.innerHTML = "<h2 style='text-align:center;margin-top:50px;'>No Sheet ID found.</h2>";
-            document.body.style.display = 'block';
-            return;
-        }
+        if (!SHEET_KEY) return;
         await loadData();
         document.body.style.display = 'block';
     }
@@ -85,57 +87,55 @@
 
     async function loadData() {
         try {
-            // 1. LOAD WINES (Always GID 0)
+            // 1. LOAD WINES (GID 0)
             const wineUrl = `https://docs.google.com/spreadsheets/d/e/${SHEET_KEY}/pub?output=csv&gid=0&cb=${Date.now()}`;
             const wineRes = await fetch(wineUrl);
             const wineText = await wineRes.text();
             const wineData = parseCSV(wineText);
             
-            const keysToAvoid = ["Store Name", "Accent Color", "Logo URL", "Wine Name"];
-            wineList = wineData.slice(1)
-                .filter(cols => cols[0] && !keysToAvoid.includes(cols[0]))
-                .map((cols, i) => ({
-                    id: "w_" + i,
-                    name: cols[0],
-                    link: cols[1] || ""
-                }));
+            wineList = wineData.slice(1).filter(cols => cols[0] && cols[0] !== "Wine Name").map((cols, i) => ({
+                id: "w_" + i,
+                name: cols[0],
+                link: cols[1] || ""
+            }));
 
-            // 2. LOAD SETTINGS (Using GID)
+            // 2. LOAD SETTINGS
             const settingsUrl = `https://docs.google.com/spreadsheets/d/e/${SHEET_KEY}/pub?output=csv&gid=${SETTINGS_GID}&cb=${Date.now()}`;
             const settingsRes = await fetch(settingsUrl);
             const settingsText = await settingsRes.text();
             const settingsData = parseCSV(settingsText);
             const settings = {};
-            
-            settingsData.forEach(cols => {
-                if (cols[0] && cols[1]) settings[cols[0]] = cols[1];
-            });
+            settingsData.forEach(cols => { if (cols[0] && cols[1]) settings[cols[0]] = cols[1]; });
 
-            // Apply Branding
-            // Apply Branding
             if (settings['Store Name']) {
                 storeName = settings['Store Name'];
-                // This line adds the Event Date if it exists
-                const displayTitle = settings['Event Date'] ? `${storeName}: ${settings['Event Date']}` : storeName;
-                
-                document.getElementById('store-name-display').innerText = displayTitle;
-                document.getElementById('page-title').innerText = displayTitle + " Vault";
+                document.getElementById('store-name-display').innerText = storeName;
+                document.getElementById('page-title').innerText = storeName + " Vault";
             }
-            if (settings['Accent Color']) {
-                document.documentElement.style.setProperty('--accent', settings['Accent Color']);
-            }
-            if (settings['Logo URL'] && settings['Logo URL'].startsWith('http')) {
+            if (settings['Accent Color']) document.documentElement.style.setProperty('--accent', settings['Accent Color']);
+            if (settings['Logo URL']) {
                 const img = document.getElementById('logo');
                 img.src = settings['Logo URL'];
                 img.style.display = 'block';
             }
 
+            // 3. LOAD DESCRIPTORS (Optional Tab)
+            try {
+                const descUrl = `https://docs.google.com/spreadsheets/d/e/${SHEET_KEY}/pub?output=csv&gid=${DESCRIPTORS_GID}&cb=${Date.now()}`;
+                const descRes = await fetch(descUrl);
+                if (descRes.ok) {
+                    const descText = await descRes.text();
+                    const descData = parseCSV(descText);
+                    descData.slice(1).forEach(cols => {
+                        if (cols[0] && cols[1]) descriptorsMap[cols[0].toLowerCase()] = cols[1];
+                    });
+                }
+            } catch (e) { console.log("No Descriptors tab found for this store."); }
+
             state = JSON.parse(localStorage.getItem('vault_' + SHEET_KEY)) || {};
             document.getElementById('timestamp').innerText = "Sync: " + new Date().toLocaleTimeString();
             render();
-        } catch (e) {
-            console.error("Data Load Error", e);
-        }
+        } catch (e) { console.error("Load Error", e); }
     }
 
     function render() {
@@ -146,10 +146,15 @@
         wineList.forEach(wine => {
             if (!wine.name.toLowerCase().includes(term)) return;
             const s = state[wine.id] || { s: null, n: "" };
+            const descLink = descriptorsMap[wine.name.toLowerCase()];
+
             html += `
                 <div class="wine-card">
                     <span class="wine-name">${wine.name}</span>
-                    ${wine.link ? `<a href="${wine.link}" target="_blank" class="db-link">Details & Reorder →</a>` : ''}
+                    <div class="link-row">
+                        ${wine.link ? `<a href="${wine.link}" target="_blank" class="db-link">Details & Reorder →</a>` : ''}
+                        ${descLink ? `<a href="${descLink}" target="_blank" class="desc-link">Descriptors →</a>` : ''}
+                    </div>
                     <div class="toggle-group">
                         <button class="btn-toggle ${s.s === 'L' ? 'active-like' : ''}" onclick="saveChoice('${wine.id}','L')">👍 Like</button>
                         <button class="btn-toggle ${s.s === 'M' ? 'active-maybe' : ''}" onclick="saveChoice('${wine.id}','M')">🤔 Maybe</button>
@@ -157,7 +162,7 @@
                     <textarea oninput="saveNote('${wine.id}', this.value)" placeholder="Tasting notes...">${s.n}</textarea>
                 </div>`;
         });
-        container.innerHTML = html || '<p style="text-align:center; color:#888; margin-top:40px;">No wines found.</p>';
+        container.innerHTML = html || '<p style="text-align:center; color:#888;">No wines found.</p>';
     }
 
     window.saveChoice = function(id, val) {
