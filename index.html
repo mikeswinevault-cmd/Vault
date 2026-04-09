@@ -10,21 +10,7 @@
         header { text-align: center; margin-bottom: 20px; }
         .store-logo { max-width: 150px; margin-bottom: 15px; display: none; margin-left: auto; margin-right: auto; border-radius: 8px; }
         .version-tag { font-size: 10px; color: #bbb; margin-top: 5px; text-transform: uppercase; letter-spacing: 1px; }
-        
-        /* Updated Search Bar: Left Aligned with standard padding */
-        .search-bar { 
-            width: 100%; 
-            padding: 14px 20px; 
-            border-radius: 25px; 
-            border: 1px solid #ddd; 
-            box-sizing: border-box; 
-            margin-bottom: 20px; 
-            font-size: 16px; 
-            outline: none; 
-            text-align: left; /* Left align text */
-            -webkit-appearance: none;
-        }
-        
+        .search-bar { width: 100%; padding: 14px 20px; border-radius: 25px; border: 1px solid #ddd; box-sizing: border-box; margin-bottom: 20px; font-size: 16px; outline: none; text-align: left; -webkit-appearance: none; }
         .wine-card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 3px 10px rgba(0,0,0,0.08); border-top: 6px solid var(--accent); position: relative; }
         .wine-name { font-weight: bold; display: block; font-size: 1.2em; color: #1a1a1a; margin-bottom: 8px; }
         .link-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
@@ -53,7 +39,7 @@
 
 <div id="modal-overlay" onclick="closeModal()">
     <div class="modal-card" onclick="event.stopPropagation()">
-        <div id="modal-wine-name" class="modal-header">Wine Details</div>
+        <div id="modal-wine-name" class="modal-header">Details</div>
         <div id="modal-data" class="data-grid"></div>
         <button class="btn-close" onclick="closeModal()">Return to Vault</button>
     </div>
@@ -63,20 +49,16 @@
     <header>
         <img id="logo" class="store-logo" src="" alt="Logo">
         <h1 id="store-name-display" style="color:var(--accent); margin:0;">Vault</h1>
-        <div class="version-tag">Engine v29.2</div>
+        <div class="version-tag">Engine v30.0</div>
         <input type="text" id="search" oninput="render()" class="search-bar" placeholder="🔍 focus ... just type a letter or two">
     </header>
-
     <div id="container"></div>
-
     <div class="footer">
         <div class="btn-group">
             <button class="btn-copy" onclick="copyToClipboard()">📋 Copy</button>
             <button class="btn-email" onclick="sendEmail()">📧 Email Report</button>
         </div>
-        <div class="privacy-box">
-            <strong>Privacy Policy:</strong> We do not collect anything. We do not collect your wine selections or email. We do not share anything with anyone.
-        </div>
+        <div class="privacy-box"><strong>Privacy Policy:</strong> We do not collect anything. We do not share anything with anyone.</div>
     </div>
 </div>
 
@@ -94,19 +76,26 @@
 
     async function init() {
         if (!SHEET_KEY) return;
-        await loadData();
         document.body.style.display = 'block';
+        await loadData();
     }
 
     function parseCSV(text) {
-        return text.split(/\r?\n/).map(row => {
-            return row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(col => col.replace(/^"|"$/g, '').trim());
-        });
+        return text.split(/\r?\n/).map(row => row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(col => col.replace(/^"|"$/g, '').trim()));
     }
 
     async function loadData() {
+        const baseUrl = `https://docs.google.com/spreadsheets/d/e/${SHEET_KEY}/pub?output=csv`;
+        
         try {
-            const setRes = await fetch(`https://docs.google.com/spreadsheets/d/e/${SHEET_KEY}/pub?output=csv&gid=${SETTINGS_GID}&cb=${Date.now()}`);
+            // PARALLEL FETCH: Ask for all 3 tabs at once
+            const [setRes, wineRes, descRes] = await Promise.all([
+                fetch(`${baseUrl}&gid=${SETTINGS_GID}`),
+                fetch(`${baseUrl}&gid=0`),
+                fetch(`${baseUrl}&gid=${DESCRIPTORS_GID}`)
+            ]);
+
+            // Process Settings
             if(setRes.ok) {
                 const settings = {};
                 parseCSV(await setRes.text()).forEach(cols => { if (cols[0] && cols[1]) settings[cols[0]] = cols[1]; });
@@ -122,23 +111,27 @@
                 }
             }
 
-            const wineText = await (await fetch(`https://docs.google.com/spreadsheets/d/e/${SHEET_KEY}/pub?output=csv&gid=0&cb=${Date.now()}`)).text();
-            wineList = parseCSV(wineText).slice(1).filter(cols => cols[0] && cols[0] !== "Wine Name").map((cols, i) => ({
-                id: "w_" + i, name: cols[0], link: cols[1] || ""
-            }));
+            // Process Wines
+            if(wineRes.ok) {
+                wineList = parseCSV(await wineRes.text()).slice(1).filter(cols => cols[0] && cols[0] !== "Wine Name").map((cols, i) => ({
+                    id: "w_" + i, name: cols[0], link: cols[1] || ""
+                }));
+            }
 
-            const descRes = await fetch(`https://docs.google.com/spreadsheets/d/e/${SHEET_KEY}/pub?output=csv&gid=${DESCRIPTORS_GID}&cb=${Date.now()}`);
+            // Process Descriptors
             if (descRes.ok) {
                 const descData = parseCSV(await descRes.text());
-                descHeaders = descData[0].slice(2, 8); 
-                descData.slice(1).forEach(cols => {
-                    if (cols[0]) descriptorsMap[cols[0].toLowerCase()] = cols.slice(2, 8);
-                });
+                if(descData.length > 0) {
+                    descHeaders = descData[0].slice(2, 8); 
+                    descData.slice(1).forEach(cols => {
+                        if (cols[0]) descriptorsMap[cols[0].toLowerCase()] = cols.slice(2, 8);
+                    });
+                }
             }
 
             state = JSON.parse(localStorage.getItem('vault_' + SHEET_KEY)) || {};
             render();
-        } catch (e) { console.error("Sync Error", e); }
+        } catch (e) { console.error("Load failed", e); }
     }
 
     function openDescriptors(wineName) {
@@ -147,9 +140,7 @@
         document.getElementById('modal-wine-name').innerText = wineName;
         let html = '';
         data.forEach((val, idx) => {
-            if(val && val.trim() !== "") {
-                html += `<div class="data-item"><span class="data-label">${descHeaders[idx]}</span>${val}</div>`;
-            }
+            if(val && val.trim() !== "") html += `<div class="data-item"><span class="data-label">${descHeaders[idx]}</span>${val}</div>`;
         });
         document.getElementById('modal-data').innerHTML = html;
         document.getElementById('modal-overlay').style.display = 'flex';
@@ -161,12 +152,10 @@
         const term = document.getElementById('search').value.toLowerCase();
         const container = document.getElementById('container');
         let html = '';
-        
         wineList.forEach(wine => {
             if (!wine.name.toLowerCase().includes(term)) return;
             const s = state[wine.id] || { s: null, n: "" };
             const hasDesc = descriptorsMap[wine.name.toLowerCase()];
-
             html += `
                 <div class="wine-card">
                     <span class="wine-name">${wine.name}</span>
