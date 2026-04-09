@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title id="page-title">Loading Vault...</title>
+    <title id="page-title">Wine Vault</title>
     <style>
         :root { --accent: #722f37; --bg: #fdfaf6; }
         body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); padding: 20px; padding-bottom: 180px; margin: 0; max-width: 600px; margin: auto; display: none; }
@@ -103,7 +103,17 @@
             if(setRes.ok) {
                 const settings = {};
                 parseCSV(await setRes.text()).forEach(cols => { if (cols[0] && cols[1]) settings[cols[0]] = cols[1]; });
-                if (settings['Store Name']) document.getElementById('store-name-display').innerText = settings['Store Name'];
+                //if (settings['Store Name']) document.getElementById('store-name-display').innerText = settings['Store Name'];
+                // Apply Branding
+            if (settings['Store Name']) {
+                storeName = settings['Store Name'];
+                // 1. Update the Header on the page
+                document.getElementById('store-name-display').innerText = storeName;
+                // 2. Update the actual Browser Tab name immediately
+                document.title = storeName + " Vault"; 
+                // 3. (Optional) Update the internal page title element
+                document.getElementById('page-title').innerText = storeName + " Vault";
+            }
                 if (settings['Accent Color']) document.documentElement.style.setProperty('--accent', settings['Accent Color']);
                 if (settings['Logo URL']) {
                     const img = document.getElementById('logo');
