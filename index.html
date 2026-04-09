@@ -6,27 +6,22 @@
     <title id="page-title">Wine Vault</title>
     <style>
         :root { --accent: #722f37; --bg: #fdfaf6; }
-        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); padding: 20px; padding-bottom: 200px; margin: 0; max-width: 600px; margin: auto; display: none; }
+        /* Removed display:none from body so branding shows fast */
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); padding: 20px; padding-bottom: 200px; margin: 0; max-width: 600px; margin: auto; }
         header { text-align: center; margin-bottom: 20px; }
         .store-logo { max-width: 150px; margin-bottom: 15px; display: none; margin-left: auto; margin-right: auto; border-radius: 8px; }
         .version-tag { font-size: 10px; color: #bbb; margin-top: 5px; text-transform: uppercase; letter-spacing: 1px; }
-        
         .search-bar { width: 100%; padding: 14px 20px; border-radius: 25px; border: 1px solid #ddd; box-sizing: border-box; margin-bottom: 20px; font-size: 16px; outline: none; text-align: left; -webkit-appearance: none; }
-        
         .wine-card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 3px 10px rgba(0,0,0,0.08); border-top: 6px solid var(--accent); position: relative; }
         .wine-name { font-weight: bold; display: block; font-size: 1.2em; color: #1a1a1a; margin-bottom: 8px; }
-        
         .link-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
         .db-link { color: #0066cc; font-size: 0.85em; text-decoration: none; }
         .desc-trigger { color: #007AFF; font-size: 0.85em; text-decoration: underline; font-weight: bold; cursor: pointer; border: none; background: none; padding: 0; }
-
         .toggle-group { display: flex; gap: 10px; margin-bottom: 15px; }
         .btn-toggle { flex: 1; padding: 15px; border: 1px solid #eee; border-radius: 10px; background: #fafafa; cursor: pointer; font-size: 1em; }
         .active-like { background-color: #2e7d32 !important; color: white !important; font-weight: bold; }
         .active-maybe { background-color: #f9a825 !important; color: white !important; font-weight: bold; }
         textarea { width: 100%; border: 1px solid #eee; border-radius: 10px; padding: 12px; box-sizing: border-box; font-size: 16px; font-family: inherit; background: #fff; min-height: 80px; resize: none; outline: none; }
-        
-        /* Modal Popup */
         #modal-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.7); display:none; z-index:2000; align-items:center; justify-content:center; padding: 20px; box-sizing: border-box; }
         .modal-card { background: white; border-radius: 15px; width: 100%; max-width: 500px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
         .modal-header { font-weight: bold; font-size: 1.2em; margin-bottom: 20px; color: var(--accent); border-bottom: 1px solid #eee; padding-bottom: 10px; }
@@ -34,12 +29,12 @@
         .data-item { font-size: 14px; line-height: 1.4; color: #333; }
         .data-label { font-weight: bold; display: block; text-transform: uppercase; font-size: 10px; color: #888; letter-spacing: 0.5px; margin-bottom: 2px; }
         .btn-close { width: 100%; padding: 15px; background: #444; color: white; border: none; border-radius: 10px; margin-top: 25px; font-weight: bold; cursor: pointer; }
-
         .footer { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 15px; z-index: 1000; box-shadow: 0 -4px 15px rgba(0,0,0,0.1); }
         .btn-group { display: flex; gap: 10px; margin-bottom: 12px; max-width: 600px; margin: auto; }
         .btn-email { background: var(--accent); color: white; border: none; padding: 18px; border-radius: 12px; flex: 2; font-weight: bold; font-size: 1.1em; cursor: pointer; }
         .btn-copy { background: #eee; color: #444; border: none; padding: 18px; border-radius: 12px; flex: 1; font-weight: bold; font-size: 0.9em; cursor: pointer; }
         .privacy-box { font-size: 11px; color: #888; text-align: center; line-height: 1.4; padding: 0 5px; max-width: 600px; margin: auto; }
+        #loading-msg { text-align: center; color: #888; margin-top: 50px; font-style: italic; }
     </style>
 </head>
 <body>
@@ -55,12 +50,14 @@
 <div id="app-content">
     <header>
         <img id="logo" class="store-logo" src="" alt="Logo">
-        <h1 id="store-name-display" style="color:var(--accent); margin:0;">Vault</h1>
-        <div class="version-tag">Engine v31.0</div>
+        <h1 id="store-name-display" style="color:var(--accent); margin:0;">Wine Vault</h1>
+        <div class="version-tag">Engine v32.0</div>
         <input type="text" id="search" oninput="render()" class="search-bar" placeholder="🔍 focus ... just type a letter or two">
     </header>
 
-    <div id="container"></div>
+    <div id="container">
+        <div id="loading-msg">Refreshing wine list...</div>
+    </div>
 
     <div class="footer">
         <div class="btn-group">
@@ -68,7 +65,7 @@
             <button class="btn-email" onclick="sendEmail()">📧 Email Report</button>
         </div>
         <div class="privacy-box">
-            <strong>Privacy Policy:</strong> We do not collect anything. We do not collect your wine selections or email. We do not share anything with anyone.
+            <strong>Privacy Policy:</strong> We do not collect anything. We do not share anything with anyone.
         </div>
     </div>
 </div>
@@ -83,11 +80,13 @@
     let state = {};
     let descriptorsMap = {};
     let descHeaders = [];
-    let currentStore = "Vault";
+    let currentStore = "Wine Vault";
 
     async function init() {
-        if (!SHEET_KEY) return;
-        document.body.style.display = 'block';
+        if (!SHEET_KEY) {
+            document.getElementById('loading-msg').innerText = "No Sheet ID found.";
+            return;
+        }
         await loadData();
     }
 
@@ -99,9 +98,7 @@
 
     async function loadData() {
         const baseUrl = `https://docs.google.com/spreadsheets/d/e/${SHEET_KEY}/pub?output=csv`;
-        
         try {
-            // Parallel Fetch - No cache-busting for speed
             const responses = await Promise.all([
                 fetch(`${baseUrl}&gid=${SETTINGS_GID}`),
                 fetch(`${baseUrl}&gid=0`),
@@ -110,7 +107,6 @@
 
             const [setRes, wineRes, descRes] = responses;
             
-            // Process Settings
             if(setRes.ok) {
                 const settings = {};
                 parseCSV(await setRes.text()).forEach(cols => { if (cols[0] && cols[1]) settings[cols[0]] = cols[1]; });
@@ -126,14 +122,12 @@
                 }
             }
 
-            // Process Wines
             if(wineRes.ok) {
                 wineList = parseCSV(await wineRes.text()).slice(1).filter(cols => cols[0] && cols[0] !== "Wine Name").map((cols, i) => ({
                     id: "w_" + i, name: cols[0], link: cols[1] || ""
                 }));
             }
 
-            // Process Descriptors
             if (descRes.ok) {
                 const descData = parseCSV(await descRes.text());
                 if(descData.length > 0) {
@@ -146,7 +140,10 @@
 
             state = JSON.parse(localStorage.getItem('vault_' + SHEET_KEY)) || {};
             render();
-        } catch (e) { console.error("Nitro Load Error", e); }
+        } catch (e) { 
+            console.error(e);
+            document.getElementById('loading-msg').innerText = "Connection slow... please refresh.";
+        }
     }
 
     function openDescriptors(wineName) {
@@ -189,7 +186,7 @@
                     <textarea oninput="saveNote('${wine.id}', this.value)" placeholder="Tasting notes...">${s.n}</textarea>
                 </div>`;
         });
-        container.innerHTML = html;
+        container.innerHTML = html || '<p style="text-align:center; color:#888;">No wines found.</p>';
     }
 
     window.saveChoice = function(id, val) {
