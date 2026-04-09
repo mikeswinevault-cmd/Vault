@@ -199,22 +199,41 @@
     };
 
     window.copyToClipboard = function() {
-        let body = `${currentStore.toUpperCase()} REPORT\n\n`;
-        wineList.forEach(wine => {
-            const d = state[wine.id];
-            if(d && (d.s || d.n)) body += `🍷 ${wine.name}\nRATING: ${d.s==='L'?'LIKE':(d.s==='M'?'MAYBE':'NONE')}\nNOTE: ${d.n}\n\n`;
-        });
-        navigator.clipboard.writeText(body).then(() => alert("Copied!"));
+        const r = generateReport();
+        if(r.count === 0) return alert("No notes to copy!");
+        navigator.clipboard.writeText(r.reportText).then(() => alert("Notes copied to clipboard!"));
     }
 
     window.sendEmail = function() {
-        let body = `${currentStore.toUpperCase()} REPORT\n\n`;
+        const r = generateReport();
+        if(r.count === 0) return alert("No notes to email!");
+        // We use the Store Name in the Subject Line for extra branding
+        window.location.href = `mailto:?subject=My ${currentStore} Tasting Notes&body=${encodeURIComponent(r.reportText)}`;
+    };
+
+    function generateReport() {
+        // This creates a "Text Logo" header for the email/clipboard
+        let reportText = `==========================\n`;
+        reportText += `${currentStore.toUpperCase()} VINE VAULT\n`;
+        reportText += `Tasting Report - ${new Date().toLocaleDateString()}\n`;
+        reportText += `==========================\n\n`;
+        
+        let count = 0;
         wineList.forEach(wine => {
             const d = state[wine.id];
-            if(d && (d.s || d.n)) body += `🍷 ${wine.name}\nRATING: ${d.s==='L'?'LIKE':(d.s==='M'?'MAYBE':'NONE')}\nNOTE: ${d.n}\n\n`;
+            if(d && (d.s || d.n)) {
+                count++;
+                const rating = d.s === 'L' ? 'LIKE 👍' : (d.s === 'M' ? 'MAYBE 🤔' : 'N/A');
+                reportText += `🍷 ${wine.name.toUpperCase()}\n`;
+                reportText += `RATING: ${rating}\n`;
+                if(d.n) reportText += `MY NOTES: ${d.n}\n`;
+                if(wine.link) reportText += `REORDER: ${wine.link}\n`;
+                reportText += `--------------------------\n\n`;
+            }
         });
-        window.location.href = `mailto:?subject=${currentStore} Notes&body=${encodeURIComponent(body)}`;
-    };
+        
+        return { reportText, count };
+    }
 
     init();
 </script>
