@@ -126,10 +126,22 @@ async function init() {
             applyData(freshData);
         } catch (e) { console.error(e); }
     }
+function applyData(data) {
+    const settings = {};
+    parseCSV(data.setText).forEach(cols => { if (cols[0] && cols[1]) settings[cols[0]] = cols[1]; });
 
-    function applyData(data) {
-        const settings = {};
-        parseCSV(data.setText).forEach(cols => { if (cols[0] && cols[1]) settings[cols[0]] = cols[1]; });
+    // 1. Get the Batch ID from Settings (default to 'v1' if empty)
+    const batchId = settings['Batch ID'] || 'v1';
+    const storageKey = 'vault_' + SHEET_KEY + '_' + batchId;
+
+    // ... (Your logo and accent color code stays here)
+
+    // 2. Load the state using the dynamic Batch ID
+    state = JSON.parse(localStorage.getItem(storageKey)) || {};
+    
+    // We store the current key in a global variable so the save functions can see it
+    window.currentStorageKey = storageKey;
+    
         if (settings['Store Name']) {
             currentStore = settings['Store Name'];
             document.getElementById('store-name-display').innerText = currentStore;
@@ -203,18 +215,20 @@ async function init() {
         container.innerHTML = html || '<p style="text-align:center; color:#888;">No wines found.</p>';
     }
 
-    window.saveChoice = function(id, val) {
-        if(!state[id]) state[id] = { s: null, n: "" };
-        state[id].s = (state[id].s === val) ? null : val;
-        localStorage.setItem('vault_' + SHEET_KEY, JSON.stringify(state));
-        render();
-    };
+window.saveChoice = function(id, val) {
+    if(!state[id]) state[id] = { s: null, n: "" };
+    state[id].s = (state[id].s === val) ? null : val;
+    // Use the dynamic key
+    localStorage.setItem(window.currentStorageKey, JSON.stringify(state));
+    render();
+};
 
-    window.saveNote = function(id, txt) {
-        if(!state[id]) state[id] = { s: null, n: "" };
-        state[id].n = txt;
-        localStorage.setItem('vault_' + SHEET_KEY, JSON.stringify(state));
-    };
+window.saveNote = function(id, txt) {
+    if(!state[id]) state[id] = { s: null, n: "" };
+    state[id].n = txt;
+    // Use the dynamic key
+    localStorage.setItem(window.currentStorageKey, JSON.stringify(state));
+};
 
     window.copyToClipboard = function() {
     const r = generateReport();
