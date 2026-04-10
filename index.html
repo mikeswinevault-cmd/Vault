@@ -218,23 +218,34 @@
     }
 
     window.sendEmail = function() {
-        const r = generateReport();
-        if(r.count === 0) return alert("No notes to email!");
-        window.location.href = `mailto:?subject=My ${currentStore} Tasting Notes&body=${encodeURIComponent(r.reportText)}`;
-    };
+    const r = generateReport();
+    if(r.count === 0) return alert("No notes to email!");
+    
+    // We use encodeURIComponent to make sure the iPhone sees the line breaks correctly
+    const subject = `My ${currentStore} Tasting Notes`;
+    const body = r.reportText;
+    
+    // This is the "Magic String" for mobile email compatibility
+    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+};
 
-    function generateReport() {
-        let reportText = `==========================\n${currentStore.toUpperCase()} VINE VAULT\nReport - ${new Date().toLocaleDateString()}\n==========================\n\n`;
-        let count = 0;
-        wineList.forEach(wine => {
-            const d = state[wine.id];
-            if(d && (d.s || d.n)) {
-                count++;
-                reportText += `🍷 ${wine.name.toUpperCase()}\nRATING: ${d.s==='L'?'LIKE 👍':(d.s==='M'?'MAYBE 🤔':'N/A')}\n${d.n ? 'NOTE: '+d.n+'\n' : ''}${wine.link ? 'REORDER: '+wine.link+'\n' : ''}--------------------------\n\n`;
-            }
-        });
-        return { reportText, count };
-    }
+function generateReport() {
+    // Note the \r\n instead of just \n - this helps iOS recognize the breaks
+    let reportText = `==========================\r\n${currentStore.toUpperCase()} VINE VAULT\r\nReport - ${new Date().toLocaleDateString()}\r\n==========================\r\n\r\n`;
+    let count = 0;
+    wineList.forEach(wine => {
+        const d = state[wine.id];
+        if(d && (d.s || d.n)) {
+            count++;
+            reportText += `🍷 ${wine.name.toUpperCase()}\r\n`;
+            reportText += `RATING: ${d.s==='L'?'LIKE 👍':(d.s==='M'?'MAYBE 🤔':'N/A')}\r\n`;
+            if(d.n) reportText += `NOTE: ${d.n}\r\n`;
+            if(wine.link) reportText += `REORDER: ${wine.link}\r\n`;
+            reportText += `--------------------------\r\n\r\n`;
+        }
+    });
+    return { reportText, count };
+}
 
     init();
 </script>
