@@ -50,7 +50,7 @@
     <header>
         <img id="logo" class="store-logo" src="" alt="Logo">
         <h1 id="store-name-display" style="color:var(--accent); margin:0;">Vault</h1>
-        <div class="version-tag">Engine v35.11</div>
+        <div class="version-tag">Engine v36.0</div>
         <input type="text" id="search" oninput="render()" class="search-bar" placeholder="🔍 focus ... just type a letter or two">
     </header>
 
@@ -63,7 +63,7 @@
         <button class="btn-copy" onclick="copyToClipboard()">📋 Copy then -></button>
         <button class="btn-email" onclick="sendEmail()">📧 Email Report</button>
         </div>
-        <div class="privacy-box"><strong>Privacy Policy:</strong> We do not collect anything. We do not share anything with anyone.</div>
+        <div class="privacy-box"><strong>Privacy Policy:</strong> We track anonymous visit counts to keep the lights on, but we never collect personal data. We do not share with anyone.</div>
     </div>
 </div>
 
@@ -79,13 +79,18 @@
     let descHeaders = [];
     let currentStore = "Vault";
 
-    async function init() {
-        if (!SHEET_KEY) return;
-        const cached = localStorage.getItem('cache_' + SHEET_KEY);
-        if (cached) applyData(JSON.parse(cached));
-        await loadData();
-    }
-
+async function init() {
+    if (!SHEET_KEY) return;
+    
+    // SILENT COUNTER PING
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby5zwh5vw8Qt-30GBNqaFoyDRz-DsuPpuQUBKI7NyKVS-JxRAtf-CK9JFUgTuZSaha7/exec";
+    fetch(SCRIPT_URL, { mode: 'no-cors' }); // 'no-cors' keeps it silent and fast
+    
+    const cached = localStorage.getItem('cache_' + SHEET_KEY);
+    if (cached) applyData(JSON.parse(cached));
+    await loadData();
+}
+    
     function parseCSV(text) {
     const lines = text.split(/\r?\n/);
     return lines.map(line => {
