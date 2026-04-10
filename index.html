@@ -87,8 +87,26 @@
     }
 
     function parseCSV(text) {
-        return text.split(/\r?\n/).map(row => row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(col => col.replace(/^"|"$/g, '').trim()));
-    }
+    const lines = text.split(/\r?\n/);
+    return lines.map(line => {
+        const result = [];
+        let cur = '';
+        let inQuote = false;
+        for (let i = 0; i < line.length; i++) {
+            let char = line[i];
+            if (char === '"') {
+                inQuote = !inQuote;
+            } else if (char === ',' && !inQuote) {
+                result.push(cur.trim());
+                cur = '';
+            } else {
+                cur += char;
+            }
+        }
+        result.push(cur.trim());
+        return result.map(val => val.replace(/^"|"$/g, ''));
+    });
+}
 
     async function loadData() {
         const baseUrl = `https://docs.google.com/spreadsheets/d/e/${SHEET_KEY}/pub?output=csv`;
@@ -126,8 +144,13 @@
         if(dData.length > 0) {
             descHeaders = dData[0].slice(2, 8); 
             dData.slice(1).forEach(cols => {
-                if (cols[0]) descriptorsMap[cols[0].toLowerCase()] = cols.slice(2, 8);
-            });
+        if (cols[0]) {
+         const key = cols[0].toLowerCase();
+         const values = cols.slice(2, 8);
+         console.log("Mapping Wine:", key, "with values:", values); // DEBUG LINE
+         descriptorsMap[key] = values;
+        }
+        });
         }
         state = JSON.parse(localStorage.getItem('vault_' + SHEET_KEY)) || {};
         render();
@@ -154,6 +177,8 @@
         const container = document.getElementById('container');
         let html = '';
         wineList.forEach(wine => {
+    const hasDesc = descriptorsMap[wine.name.toLowerCase()];
+    if (!hasDesc) console.log("No Match Found For:", wine.name.toLowerCase()); // DEBUG LINE
             if (!wine.name.toLowerCase().includes(term)) return;
             const s = state[wine.id] || { s: null, n: "" };
             const hasDesc = descriptorsMap[wine.name.toLowerCase()];
