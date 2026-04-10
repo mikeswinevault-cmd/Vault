@@ -60,8 +60,8 @@
 
     <div class="footer">
         <div class="btn-group">
-            <button class="btn-copy" onclick="copyToClipboard()">📋 Copy</button>
-            <button class="btn-email" onclick="sendEmail()">📧 Email Report</button>
+        <button class="btn-copy" onclick="copyToClipboard()">📋 Copy then -></button>
+        <button class="btn-email" onclick="sendEmail()">📧 Email Report</button>
         </div>
         <div class="privacy-box"><strong>Privacy Policy:</strong> We do not collect anything. We do not share anything with anyone.</div>
     </div>
@@ -212,10 +212,17 @@
     };
 
     window.copyToClipboard = function() {
-        const r = generateReport();
-        if(r.count === 0) return alert("No notes to copy!");
-        navigator.clipboard.writeText(r.reportText).then(() => alert("Notes copied to clipboard!"));
-    }
+    const r = generateReport();
+    if(r.count === 0) return alert("No notes to copy!");
+    
+    navigator.clipboard.writeText(r.reportText).then(() => {
+        // Find the button and change text temporarily
+        const btn = document.querySelector('.btn-copy');
+        const originalText = btn.innerText;
+        btn.innerText = "✅ Copied!";
+        setTimeout(() => { btn.innerText = originalText; }, 2000);
+    });
+}
 
     window.sendEmail = function() {
     const r = generateReport();
