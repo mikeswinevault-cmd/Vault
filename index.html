@@ -60,8 +60,8 @@
 
     <div class="footer">
         <div class="btn-group">
-        <button class="btn-copy" onclick="copyToClipboard()">📋 Copy then -></button>
-        <button class="btn-email" onclick="sendEmail()">📧 Email Report</button>
+            <button class="btn-copy" onclick="copyToClipboard()">📋 Copy then -></button>
+            <button class="btn-email" onclick="sendEmail()">📧 Email Report</button>
         </div>
         <div class="privacy-box"><strong>Privacy Policy:</strong> We track anonymous visit counts to keep the lights on, but we never collect personal data. We do not share with anyone.</div>
     </div>
@@ -79,39 +79,38 @@
     let descHeaders = [];
     let currentStore = "Vault";
 
-async function init() {
-    if (!SHEET_KEY) return;
-    
-    // SILENT COUNTER PING
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby5zwh5vw8Qt-30GBNqaFoyDRz-DsuPpuQUBKI7NyKVS-JxRAtf-CK9JFUgTuZSaha7/exec";
-    fetch(SCRIPT_URL, { mode: 'no-cors' }); // 'no-cors' keeps it silent and fast
-    
-    const cached = localStorage.getItem('cache_' + SHEET_KEY);
-    if (cached) applyData(JSON.parse(cached));
-    await loadData();
-}
+    async function init() {
+        if (!SHEET_KEY) return;
+        
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby5zwh5vw8Qt-30GBNqaFoyDRz-DsuPpuQUBKI7NyKVS-JxRAtf-CK9JFUgTuZSaha7/exec";
+        fetch(SCRIPT_URL, { mode: 'no-cors' }); 
+        
+        const cached = localStorage.getItem('cache_' + SHEET_KEY);
+        if (cached) applyData(JSON.parse(cached));
+        await loadData();
+    }
     
     function parseCSV(text) {
-    const lines = text.split(/\r?\n/);
-    return lines.map(line => {
-        const result = [];
-        let cur = '';
-        let inQuote = false;
-        for (let i = 0; i < line.length; i++) {
-            let char = line[i];
-            if (char === '"') {
-                inQuote = !inQuote;
-            } else if (char === ',' && !inQuote) {
-                result.push(cur.trim());
-                cur = '';
-            } else {
-                cur += char;
+        const lines = text.split(/\r?\n/);
+        return lines.map(line => {
+            const result = [];
+            let cur = '';
+            let inQuote = false;
+            for (let i = 0; i < line.length; i++) {
+                let char = line[i];
+                if (char === '"') {
+                    inQuote = !inQuote;
+                } else if (char === ',' && !inQuote) {
+                    result.push(cur.trim());
+                    cur = '';
+                } else {
+                    cur += char;
+                }
             }
-        }
-        result.push(cur.trim());
-        return result.map(val => val.replace(/^"|"$/g, ''));
-    });
-}
+            result.push(cur.trim());
+            return result.map(val => val.replace(/^"|"$/g, ''));
+        });
+    }
 
     async function loadData() {
         const baseUrl = `https://docs.google.com/spreadsheets/d/e/${SHEET_KEY}/pub?output=csv`;
@@ -126,22 +125,16 @@ async function init() {
             applyData(freshData);
         } catch (e) { console.error(e); }
     }
-function applyData(data) {
-    const settings = {};
-    parseCSV(data.setText).forEach(cols => { if (cols[0] && cols[1]) settings[cols[0]] = cols[1]; });
 
-    // 1. Get the Batch ID from Settings (default to 'v1' if empty)
-    const batchId = settings['Batch ID'] || 'v1';
-    const storageKey = 'vault_' + SHEET_KEY + '_' + batchId;
+    function applyData(data) {
+        const settings = {};
+        parseCSV(data.setText).forEach(cols => { if (cols[0] && cols[1]) settings[cols[0]] = cols[1]; });
 
-    // ... (Your logo and accent color code stays here)
+        const batchId = settings['Batch ID'] || 'v1';
+        window.currentStorageKey = 'vault_' + SHEET_KEY + '_' + batchId;
 
-    // 2. Load the state using the dynamic Batch ID
-    state = JSON.parse(localStorage.getItem(storageKey)) || {};
-    
-    // We store the current key in a global variable so the save functions can see it
-    window.currentStorageKey = storageKey;
-    
+        state = JSON.parse(localStorage.getItem(window.currentStorageKey)) || {};
+        
         if (settings['Store Name']) {
             currentStore = settings['Store Name'];
             document.getElementById('store-name-display').innerText = currentStore;
@@ -161,15 +154,11 @@ function applyData(data) {
         if(dData.length > 0) {
             descHeaders = dData[0].slice(2, 8); 
             dData.slice(1).forEach(cols => {
-        if (cols[0]) {
-         const key = cols[0].toLowerCase();
-         const values = cols.slice(2, 8);
-         console.log("Mapping Wine:", key, "with values:", values); // DEBUG LINE
-         descriptorsMap[key] = values;
+                if (cols[0]) {
+                    descriptorsMap[cols[0].toLowerCase()] = cols.slice(2, 8);
+                }
+            });
         }
-        });
-        }
-        state = JSON.parse(localStorage.getItem('vault_' + SHEET_KEY)) || {};
         render();
     }
 
@@ -194,8 +183,6 @@ function applyData(data) {
         const container = document.getElementById('container');
         let html = '';
         wineList.forEach(wine => {
-    const hasDesc1 = descriptorsMap[wine.name.toLowerCase()];
-    if (!hasDesc1) console.log("No Match Found For:", wine.name.toLowerCase()); // DEBUG LINE
             if (!wine.name.toLowerCase().includes(term)) return;
             const s = state[wine.id] || { s: null, n: "" };
             const hasDesc = descriptorsMap[wine.name.toLowerCase()];
@@ -215,63 +202,54 @@ function applyData(data) {
         container.innerHTML = html || '<p style="text-align:center; color:#888;">No wines found.</p>';
     }
 
-window.saveChoice = function(id, val) {
-    if(!state[id]) state[id] = { s: null, n: "" };
-    state[id].s = (state[id].s === val) ? null : val;
-    // Use the dynamic key
-    localStorage.setItem(window.currentStorageKey, JSON.stringify(state));
-    render();
-};
+    window.saveChoice = function(id, val) {
+        if(!state[id]) state[id] = { s: null, n: "" };
+        state[id].s = (state[id].s === val) ? null : val;
+        localStorage.setItem(window.currentStorageKey, JSON.stringify(state));
+        render();
+    };
 
-window.saveNote = function(id, txt) {
-    if(!state[id]) state[id] = { s: null, n: "" };
-    state[id].n = txt;
-    // Use the dynamic key
-    localStorage.setItem(window.currentStorageKey, JSON.stringify(state));
-};
+    window.saveNote = function(id, txt) {
+        if(!state[id]) state[id] = { s: null, n: "" };
+        state[id].n = txt;
+        localStorage.setItem(window.currentStorageKey, JSON.stringify(state));
+    };
 
     window.copyToClipboard = function() {
-    const r = generateReport();
-    if(r.count === 0) return alert("No notes to copy!");
-    
-    navigator.clipboard.writeText(r.reportText).then(() => {
-        // Find the button and change text temporarily
-        const btn = document.querySelector('.btn-copy');
-        const originalText = btn.innerText;
-        btn.innerText = "✅ Copied!";
-        setTimeout(() => { btn.innerText = originalText; }, 2000);
-    });
-}
+        const r = generateReport();
+        if(r.count === 0) return alert("No notes to copy!");
+        navigator.clipboard.writeText(r.reportText).then(() => {
+            const btn = document.querySelector('.btn-copy');
+            const originalText = btn.innerText;
+            btn.innerText = "✅ Copied!";
+            setTimeout(() => { btn.innerText = originalText; }, 2000);
+        });
+    }
 
     window.sendEmail = function() {
-    const r = generateReport();
-    if(r.count === 0) return alert("No notes to email!");
-    
-    // We use encodeURIComponent to make sure the iPhone sees the line breaks correctly
-    const subject = `My ${currentStore} Tasting Notes`;
-    const body = r.reportText;
-    
-    // This is the "Magic String" for mobile email compatibility
-    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-};
+        const r = generateReport();
+        if(r.count === 0) return alert("No notes to email!");
+        const subject = `My ${currentStore} Tasting Notes`;
+        const body = r.reportText;
+        window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    };
 
-function generateReport() {
-    // Note the \r\n instead of just \n - this helps iOS recognize the breaks
-    let reportText = `==========================\r\n${currentStore.toUpperCase()} VINE VAULT\r\nReport - ${new Date().toLocaleDateString()}\r\n==========================\r\n\r\n`;
-    let count = 0;
-    wineList.forEach(wine => {
-        const d = state[wine.id];
-        if(d && (d.s || d.n)) {
-            count++;
-            reportText += `🍷 ${wine.name.toUpperCase()}\r\n`;
-            reportText += `RATING: ${d.s==='L'?'LIKE 👍':(d.s==='M'?'MAYBE 🤔':'N/A')}\r\n`;
-            if(d.n) reportText += `NOTE: ${d.n}\r\n`;
-            if(wine.link) reportText += `REORDER: ${wine.link}\r\n`;
-            reportText += `--------------------------\r\n\r\n`;
-        }
-    });
-    return { reportText, count };
-}
+    function generateReport() {
+        let reportText = `==========================\r\n${currentStore.toUpperCase()} VINE VAULT\r\nReport - ${new Date().toLocaleDateString()}\r\n==========================\r\n\r\n`;
+        let count = 0;
+        wineList.forEach(wine => {
+            const d = state[wine.id];
+            if(d && (d.s || d.n)) {
+                count++;
+                reportText += `🍷 ${wine.name.toUpperCase()}\r\n`;
+                reportText += `RATING: ${d.s==='L'?'LIKE 👍':(d.s==='M'?'MAYBE 🤔':'N/A')}\r\n`;
+                if(d.n) reportText += `NOTE: ${d.n}\r\n`;
+                if(wine.link) reportText += `REORDER: ${wine.link}\r\n`;
+                reportText += `--------------------------\r\n\r\n`;
+            }
+        });
+        return { reportText, count };
+    }
 
     init();
 </script>
