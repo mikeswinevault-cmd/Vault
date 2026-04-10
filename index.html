@@ -177,8 +177,8 @@
         const container = document.getElementById('container');
         let html = '';
         wineList.forEach(wine => {
-    const hasDesc = descriptorsMap[wine.name.toLowerCase()];
-    if (!hasDesc) console.log("No Match Found For:", wine.name.toLowerCase()); // DEBUG LINE
+    const hasDesc1 = descriptorsMap[wine.name.toLowerCase()];
+    if (!hasDesc1) console.log("No Match Found For:", wine.name.toLowerCase()); // DEBUG LINE
             if (!wine.name.toLowerCase().includes(term)) return;
             const s = state[wine.id] || { s: null, n: "" };
             const hasDesc = descriptorsMap[wine.name.toLowerCase()];
