@@ -79,12 +79,30 @@
     let descHeaders = [];
     let currentStore = "Vault";
 
-    async function init() {
+async function init() {
         if (!SHEET_KEY) return;
-        
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby5zwh5vw8Qt-30GBNqaFoyDRz-DsuPpuQUBKI7NyKVS-JxRAtf-CK9JFUgTuZSaha7/exec";
-        fetch(SCRIPT_URL, { mode: 'no-cors' }); 
-        
+
+        // 1. Admin Tagging Logic
+        // Visit your URL once with &admin=true to mute your device forever
+        if (urlParams.get('admin') === 'true') {
+            localStorage.setItem('is_vault_admin', 'true');
+            alert("Admin Mode: Visits from this device are now hidden from stats.");
+        }
+
+        const isAdmin = localStorage.getItem('is_vault_admin') === 'true';
+
+        // 2. The "Ping" to Google Sheets
+        if (!isAdmin) {
+            // Replace the URL below with your actual Deployment URL
+            const scriptUrl = "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec"; 
+            
+            // We use {mode: 'no-cors'} to prevent "CORS" errors 
+            // It sends the data and ignores the "security" warning from Google
+            fetch(scriptUrl + "?action=increment", { mode: 'no-cors' })
+                .catch(e => console.log("Stats update skipped"));
+        }
+
+        // 3. Normal App Loading
         const cached = localStorage.getItem('cache_' + SHEET_KEY);
         if (cached) applyData(JSON.parse(cached));
         await loadData();
