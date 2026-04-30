@@ -13,7 +13,7 @@
         .search-bar { width: 100%; padding: 14px 20px; border-radius: 25px; border: 1px solid #ddd; box-sizing: border-box; margin-bottom: 20px; font-size: 16px; outline: none; text-align: left; -webkit-appearance: none; }
         .wine-card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 3px 10px rgba(0,0,0,0.08); border-top: 6px solid var(--accent); position: relative; }
         .wine-name { font-weight: bold; display: block; font-size: 1.2em; color: #1a1a1a; margin-bottom: 8px; }
-        .link-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .link-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; min-height: 20px; }
         .db-link { color: #0066cc; font-size: 0.85em; text-decoration: none; }
         .desc-trigger { color: #007AFF; font-size: 0.85em; text-decoration: underline; font-weight: bold; cursor: pointer; border: none; background: none; padding: 0; }
         .toggle-group { display: flex; gap: 10px; margin-bottom: 15px; }
@@ -21,6 +21,11 @@
         .active-like { background-color: #2e7d32 !important; color: white !important; font-weight: bold; }
         .active-maybe { background-color: #f9a825 !important; color: white !important; font-weight: bold; }
         textarea { width: 100%; border: 1px solid #eee; border-radius: 10px; padding: 12px; box-sizing: border-box; font-size: 16px; font-family: inherit; background: #fff; min-height: 80px; resize: none; outline: none; }
+        
+        /* Scoring Styles */
+        .score-label { font-size: 14px; font-weight: bold; margin-top: 15px; display: block; color: #444; }
+        .score-select { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #ddd; background: white; font-size: 16px; margin-top: 5px; outline: none; -webkit-appearance: none; }
+
         #modal-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.7); display:none; z-index:2000; align-items:center; justify-content:center; padding: 20px; box-sizing: border-box; }
         .modal-card { background: white; border-radius: 15px; width: 100%; max-width: 500px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
         .modal-header { font-weight: bold; font-size: 1.2em; margin-bottom: 20px; color: var(--accent); border-bottom: 1px solid #eee; padding-bottom: 10px; }
@@ -50,8 +55,8 @@
     <header>
         <img id="logo" class="store-logo" src="" alt="Logo">
         <h1 id="store-name-display" style="color:var(--accent); margin:0;">Vault</h1>
-        <div class="version-tag">Engine v37.0</div>
-        <input type="text" id="search" oninput="render()" class="search-bar" placeholder="🔍 focus ... just type a letter or two">
+        <div class="version-tag">Engine v38.0 - Chapter Edition</div>
+        <input type="text" id="search" oninput="render()" class="search-bar" placeholder="🔍 Find a wine...">
     </header>
 
     <div id="container">
@@ -60,10 +65,10 @@
 
     <div class="footer">
         <div class="btn-group">
-            <button class="btn-copy" onclick="copyToClipboard()">📋 Copy then -></button>
+            <button class="btn-copy" onclick="copyToClipboard()">📋 Copy Report</button>
             <button class="btn-email" onclick="sendEmail()">📧 Email Report</button>
         </div>
-        <div class="privacy-box"><strong>Privacy Policy:</strong> We track anonymous visit counts to keep the lights on, but we never collect personal data. We do not share with anyone.</div>
+        <div class="privacy-box"><strong>Privacy Policy:</strong> Notes are stored locally on your device. We track anonymous visit counts but never personal data.</div>
     </div>
 </div>
 
@@ -79,7 +84,7 @@
     let descHeaders = [];
     let currentStore = "Vault";
 
-async function init() {
+    async function init() {
         if (!SHEET_KEY) return;
 
         // 1. Admin Tagging Logic
@@ -93,11 +98,9 @@ async function init() {
 
         // 2. The "Ping" to Google Sheets
         if (!isAdmin) {
-            // Replace the URL below with your actual Deployment URL
+            // YOUR PERMANENT DEPLOYMENT URL BAKED IN:
             const scriptUrl = "https://script.google.com/macros/s/AKfycby5zwh5vw8Qt-30GBNqaFoyDRz-DsuPpuQUBKI7NyKVS-JxRAtf-CK9JFUgTuZSaha7/exec"; 
             
-            // We use {mode: 'no-cors'} to prevent "CORS" errors 
-            // It sends the data and ignores the "security" warning from Google
             fetch(scriptUrl + "?action=increment", { mode: 'no-cors' })
                 .catch(e => console.log("Stats update skipped"));
         }
@@ -107,27 +110,9 @@ async function init() {
         if (cached) applyData(JSON.parse(cached));
         await loadData();
     }
-    
+
     function parseCSV(text) {
-        const lines = text.split(/\r?\n/);
-        return lines.map(line => {
-            const result = [];
-            let cur = '';
-            let inQuote = false;
-            for (let i = 0; i < line.length; i++) {
-                let char = line[i];
-                if (char === '"') {
-                    inQuote = !inQuote;
-                } else if (char === ',' && !inQuote) {
-                    result.push(cur.trim());
-                    cur = '';
-                } else {
-                    cur += char;
-                }
-            }
-            result.push(cur.trim());
-            return result.map(val => val.replace(/^"|"$/g, ''));
-        });
+        return text.split(/\r?\n/).map(row => row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(col => col.replace(/^"|"$/g, '').trim()));
     }
 
     async function loadData() {
@@ -150,9 +135,8 @@ async function init() {
 
         const batchId = settings['Batch ID'] || 'v1';
         window.currentStorageKey = 'vault_' + SHEET_KEY + '_' + batchId;
-
         state = JSON.parse(localStorage.getItem(window.currentStorageKey)) || {};
-        
+
         if (settings['Store Name']) {
             currentStore = settings['Store Name'];
             document.getElementById('store-name-display').innerText = currentStore;
@@ -172,12 +156,96 @@ async function init() {
         if(dData.length > 0) {
             descHeaders = dData[0].slice(2, 8); 
             dData.slice(1).forEach(cols => {
-                if (cols[0]) {
-                    descriptorsMap[cols[0].toLowerCase()] = cols.slice(2, 8);
-                }
+                if (cols[0]) descriptorsMap[cols[0].toLowerCase()] = cols.slice(2, 8);
             });
         }
         render();
+    }
+
+    function generateScoreOptions(currentScore) {
+        let options = '';
+        for (let i = 200; i >= 100; i -= 5) {
+            let val = (i / 10).toFixed(1);
+            options += `<option value="${val}" ${currentScore == val ? 'selected' : ''}>${val}</option>`;
+        }
+        return options;
+    }
+
+    function render() {
+        const term = document.getElementById('search').value.toLowerCase();
+        const container = document.getElementById('container');
+        let html = '';
+        wineList.forEach(wine => {
+            if (!wine.name.toLowerCase().includes(term)) return;
+            
+            const isBlind = /^[WR]\d+$/i.test(wine.name.trim());
+            const s = state[wine.id] || { s: null, n: "", score: "15.0" };
+            const hasDesc = descriptorsMap[wine.name.toLowerCase()];
+            const isApproved = wine.link && wine.link.toLowerCase().startsWith('http');
+
+            html += `<div class="wine-card">
+                <span class="wine-name">${wine.name}</span>
+                <div class="link-row">
+                    ${(!isBlind && isApproved) ? `<a href="${wine.link}" target="_blank" class="db-link">Details & Reorder →</a>` : '<span></span>'}
+                    ${(!isBlind && hasDesc) ? `<button onclick="openDescriptors('${wine.name.replace(/'/g, "\\'")}')" class="desc-trigger">Descriptors →</button>` : ''}
+                </div>
+                <div class="toggle-group">
+                    <button class="btn-toggle ${s.s === 'L' ? 'active-like' : ''}" onclick="saveChoice('${wine.id}','L')">👍 Like</button>
+                    <button class="btn-toggle ${s.s === 'M' ? 'active-maybe' : ''}" onclick="saveChoice('${wine.id}','M')">🤔 Maybe</button>
+                </div>
+                <textarea oninput="saveNote('${wine.id}', this.value)" placeholder="Tasting notes...">${s.n}</textarea>
+                
+                <label class="score-label">Score (20.0 max):</label>
+                <select class="score-select" onchange="saveScore('${wine.id}', this.value)">
+                    ${generateScoreOptions(s.score)}
+                </select>
+            </div>`;
+        });
+        container.innerHTML = html || '<p style="text-align:center; color:#888;">No wines found.</p>';
+    }
+
+    window.saveChoice = function(id, val) {
+        if(!state[id]) state[id] = { s: null, n: "", score: "15.0" };
+        state[id].s = (state[id].s === val) ? null : val;
+        localStorage.setItem(window.currentStorageKey, JSON.stringify(state));
+        render();
+    };
+
+    window.saveNote = function(id, txt) {
+        if(!state[id]) state[id] = { s: null, n: "", score: "15.0" };
+        state[id].n = txt;
+        localStorage.setItem(window.currentStorageKey, JSON.stringify(state));
+    };
+
+    window.saveScore = function(id, val) {
+        if(!state[id]) state[id] = { s: null, n: "", score: "15.0" };
+        state[id].score = val;
+        localStorage.setItem(window.currentStorageKey, JSON.stringify(state));
+    };
+
+    window.copyToClipboard = function() {
+        const r = generateReport();
+        if(r.count === 0) return alert("No notes to copy!");
+        navigator.clipboard.writeText(r.reportText).then(() => alert("Report copied!"));
+    }
+
+    window.sendEmail = function() {
+        const r = generateReport();
+        if(r.count === 0) return alert("No notes to email!");
+        window.location.href = `mailto:?subject=Tasting Report&body=${encodeURIComponent(r.reportText)}`;
+    };
+
+    function generateReport() {
+        let reportText = `==========================\n${currentStore.toUpperCase()} REPORT\n==========================\n\n`;
+        let count = 0;
+        wineList.forEach(wine => {
+            const d = state[wine.id];
+            if(d && (d.s || d.n || d.score)) {
+                count++;
+                reportText += `🍷 ${wine.name.toUpperCase()}\nSCORE: ${d.score}/20.0\nRATING: ${d.s==='L'?'LIKE':(d.s==='M'?'MAYBE':'N/A')}\n${d.n ? 'NOTE: '+d.n+'\n' : ''}--------------------------\n\n`;
+            }
+        });
+        return { reportText, count };
     }
 
     function openDescriptors(wineName) {
@@ -195,79 +263,6 @@ async function init() {
     }
 
     function closeModal() { document.getElementById('modal-overlay').style.display = 'none'; }
-
-    function render() {
-        const term = document.getElementById('search').value.toLowerCase();
-        const container = document.getElementById('container');
-        let html = '';
-        wineList.forEach(wine => {
-            if (!wine.name.toLowerCase().includes(term)) return;
-            const s = state[wine.id] || { s: null, n: "" };
-            const hasDesc = descriptorsMap[wine.name.toLowerCase()];
-            html += `<div class="wine-card">
-                <span class="wine-name">${wine.name}</span>
-                <div class="link-row">
-                    <a href="${wine.link}" target="_blank" class="db-link">Details & Reorder →</a>
-                    ${hasDesc ? `<button onclick="openDescriptors('${wine.name.replace(/'/g, "\\'")}')" class="desc-trigger">Descriptors →</button>` : ''}
-                </div>
-                <div class="toggle-group">
-                    <button class="btn-toggle ${s.s === 'L' ? 'active-like' : ''}" onclick="saveChoice('${wine.id}','L')">👍 Like</button>
-                    <button class="btn-toggle ${s.s === 'M' ? 'active-maybe' : ''}" onclick="saveChoice('${wine.id}','M')">🤔 Maybe</button>
-                </div>
-                <textarea oninput="saveNote('${wine.id}', this.value)" placeholder="Tasting notes...">${s.n}</textarea>
-            </div>`;
-        });
-        container.innerHTML = html || '<p style="text-align:center; color:#888;">No wines found.</p>';
-    }
-
-    window.saveChoice = function(id, val) {
-        if(!state[id]) state[id] = { s: null, n: "" };
-        state[id].s = (state[id].s === val) ? null : val;
-        localStorage.setItem(window.currentStorageKey, JSON.stringify(state));
-        render();
-    };
-
-    window.saveNote = function(id, txt) {
-        if(!state[id]) state[id] = { s: null, n: "" };
-        state[id].n = txt;
-        localStorage.setItem(window.currentStorageKey, JSON.stringify(state));
-    };
-
-    window.copyToClipboard = function() {
-        const r = generateReport();
-        if(r.count === 0) return alert("No notes to copy!");
-        navigator.clipboard.writeText(r.reportText).then(() => {
-            const btn = document.querySelector('.btn-copy');
-            const originalText = btn.innerText;
-            btn.innerText = "✅ Copied!";
-            setTimeout(() => { btn.innerText = originalText; }, 2000);
-        });
-    }
-
-    window.sendEmail = function() {
-        const r = generateReport();
-        if(r.count === 0) return alert("No notes to email!");
-        const subject = `My ${currentStore} Tasting Notes`;
-        const body = r.reportText;
-        window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    };
-
-    function generateReport() {
-        let reportText = `==========================\r\n${currentStore.toUpperCase()} VINE VAULT\r\nReport - ${new Date().toLocaleDateString()}\r\n==========================\r\n\r\n`;
-        let count = 0;
-        wineList.forEach(wine => {
-            const d = state[wine.id];
-            if(d && (d.s || d.n)) {
-                count++;
-                reportText += `🍷 ${wine.name.toUpperCase()}\r\n`;
-                reportText += `RATING: ${d.s==='L'?'LIKE 👍':(d.s==='M'?'MAYBE 🤔':'N/A')}\r\n`;
-                if(d.n) reportText += `NOTE: ${d.n}\r\n`;
-                if(wine.link) reportText += `REORDER: ${wine.link}\r\n`;
-                reportText += `--------------------------\r\n\r\n`;
-            }
-        });
-        return { reportText, count };
-    }
 
     init();
 </script>
