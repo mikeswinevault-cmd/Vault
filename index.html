@@ -129,10 +129,15 @@
         } catch (e) { console.error(e); }
     }
 
+    let enableScoring = false; // Add this near the top of your script variables
+
     function applyData(data) {
         const settings = {};
         parseCSV(data.setText).forEach(cols => { if (cols[0] && cols[1]) settings[cols[0]] = cols[1]; });
 
+        // Add this line to capture your new setting
+        enableScoring = settings['Enable Scoring'] && settings['Enable Scoring'].toUpperCase() === 'TRUE';
+        
         const batchId = settings['Batch ID'] || 'v1';
         window.currentStorageKey = 'vault_' + SHEET_KEY + '_' + batchId;
         state = JSON.parse(localStorage.getItem(window.currentStorageKey)) || {};
@@ -183,7 +188,7 @@
             const hasDesc = descriptorsMap[wine.name.toLowerCase()];
             const isApproved = wine.link && wine.link.toLowerCase().startsWith('http');
 
-            html += `<div class="wine-card">
+html += `<div class="wine-card">
                 <span class="wine-name">${wine.name}</span>
                 <div class="link-row">
                     ${(!isBlind && isApproved) ? `<a href="${wine.link}" target="_blank" class="db-link">Details & Reorder →</a>` : '<span></span>'}
@@ -195,10 +200,12 @@
                 </div>
                 <textarea oninput="saveNote('${wine.id}', this.value)" placeholder="Tasting notes...">${s.n}</textarea>
                 
+                ${enableScoring ? `
                 <label class="score-label">Score (20.0 max):</label>
                 <select class="score-select" onchange="saveScore('${wine.id}', this.value)">
                     ${generateScoreOptions(s.score)}
                 </select>
+                ` : ''}
             </div>`;
         });
         container.innerHTML = html || '<p style="text-align:center; color:#888;">No wines found.</p>';
@@ -240,9 +247,14 @@
         let count = 0;
         wineList.forEach(wine => {
             const d = state[wine.id];
-            if(d && (d.s || d.n || d.score)) {
+            if(d && (d.s || d.n || (enableScoring && d.score))) {
                 count++;
-                reportText += `🍷 ${wine.name.toUpperCase()}\nSCORE: ${d.score}/20.0\nRATING: ${d.s==='L'?'LIKE':(d.s==='M'?'MAYBE':'N/A')}\n${d.n ? 'NOTE: '+d.n+'\n' : ''}--------------------------\n\n`;
+                reportText += `🍷 ${wine.name.toUpperCase()}\n`;
+                
+                // Only include score in text if scoring is enabled
+                if(enableScoring) reportText += `SCORE: ${d.score}/20.0\n`;
+                
+                reportText += `RATING: ${d.s==='L'?'LIKE':(d.s==='M'?'MAYBE':'N/A')}\n${d.n ? 'NOTE: '+d.n+'\n' : ''}--------------------------\n\n`;
             }
         });
         return { reportText, count };
@@ -255,7 +267,7 @@
         let html = '';
         data.forEach((val, idx) => {
             if(val && val.trim() !== "" && val.toLowerCase() !== "n/a") {
-                html += `<div class="data-item"><span class="data-label">${descHeaders[idx]}</span>${val}</div>`;
+                generaterep `<div class="data-item"><span class="data-label">${descHeaders[idx]}</span>${val}</div>`;
             }
         });
         document.getElementById('modal-data').innerHTML = html;
