@@ -73,24 +73,23 @@
 </div>
 
 <script>
-    
     const urlParams = new URLSearchParams(window.location.search);
     const SHEET_KEY = urlParams.get('id');
     const SETTINGS_GID = '1010402997'; 
     const DESCRIPTORS_GID = '458806725';
 
+    // GLOBAL VARIABLES
     let wineList = [];
     let state = {};
     let descriptorsMap = {};
     let descHeaders = [];
     let currentStore = "Vault";
-    let enableScoring = false; // <--- Ensure this is here!
-    
+    let enableScoring = false; 
+
     async function init() {
         if (!SHEET_KEY) return;
 
         // 1. Admin Tagging Logic
-        // Visit your URL once with &admin=true to mute your device forever
         if (urlParams.get('admin') === 'true') {
             localStorage.setItem('is_vault_admin', 'true');
             alert("Admin Mode: Visits from this device are now hidden from stats.");
@@ -98,16 +97,14 @@
 
         const isAdmin = localStorage.getItem('is_vault_admin') === 'true';
 
-        // 2. The "Ping" to Google Sheets
+        // 2. Stats Ping
         if (!isAdmin) {
-            // YOUR PERMANENT DEPLOYMENT URL BAKED IN:
             const scriptUrl = "https://script.google.com/macros/s/AKfycby5zwh5vw8Qt-30GBNqaFoyDRz-DsuPpuQUBKI7NyKVS-JxRAtf-CK9JFUgTuZSaha7/exec"; 
-            
             fetch(scriptUrl + "?action=increment", { mode: 'no-cors' })
                 .catch(e => console.log("Stats update skipped"));
         }
 
-        // 3. Normal App Loading
+        // 3. Cache and Load
         const cached = localStorage.getItem('cache_' + SHEET_KEY);
         if (cached) applyData(JSON.parse(cached));
         await loadData();
@@ -128,16 +125,14 @@
             const freshData = { setText: await res[0].text(), wineText: await res[1].text(), descText: await res[2].text() };
             localStorage.setItem('cache_' + SHEET_KEY, JSON.stringify(freshData));
             applyData(freshData);
-        } catch (e) { console.error(e); }
+        } catch (e) { console.error("Load Error:", e); }
     }
-
-    let enableScoring = false; // Add this near the top of your script variables
 
     function applyData(data) {
         const settings = {};
         parseCSV(data.setText).forEach(cols => { if (cols[0] && cols[1]) settings[cols[0]] = cols[1]; });
 
-        // Update the global variable
+        // SET GLOBAL SETTINGS
         enableScoring = settings['Enable Scoring'] && settings['Enable Scoring'].toString().toUpperCase() === 'TRUE';
         
         const batchId = settings['Batch ID'] || 'v1';
@@ -155,15 +150,17 @@
             img.src = settings['Logo URL']; img.style.display = 'block';
         }
 
+        // WINE LIST (Col A: Name, Col B: Link)
         wineList = parseCSV(data.wineText).slice(1).filter(cols => cols[0] && cols[0] !== "Wine Name").map((cols, i) => ({
             id: "w_" + i, name: cols[0], link: cols[1] || ""
         }));
 
+        // DESCRIPTORS (Cols C-I: Viticulture, Vines, Oak, Yeast, Aromas, Price, Vintage)
         const dData = parseCSV(data.descText);
         if(dData.length > 0) {
-            descHeaders = dData[0].slice(2, 8); 
+            descHeaders = dData[0].slice(2, 9); 
             dData.slice(1).forEach(cols => {
-                if (cols[0]) descriptorsMap[cols[0].toLowerCase()] = cols.slice(2, 8);
+                if (cols[0]) descriptorsMap[cols[0].toLowerCase()] = cols.slice(2, 9);
             });
         }
         render();
@@ -182,17 +179,16 @@
         const term = document.getElementById('search').value.toLowerCase();
         const container = document.getElementById('container');
         let html = '';
+        
         wineList.forEach(wine => {
             if (!wine.name.toLowerCase().includes(term)) return;
             
             const isBlind = /^[WR]\d+$/i.test(wine.name.trim());
             const s = state[wine.id] || { s: null, n: "", score: "15.0" };
-
-            
             const hasDesc = descriptorsMap[wine.name.toLowerCase()];
             const isApproved = wine.link && wine.link.toLowerCase().startsWith('http');
 
-html += `<div class="wine-card">
+            html += `<div class="wine-card">
                 <span class="wine-name">${wine.name}</span>
                 <div class="link-row">
                     ${(!isBlind && isApproved) ? `<a href="${wine.link}" target="_blank" class="db-link">Details & Reorder →</a>` : '<span></span>'}
@@ -254,10 +250,7 @@ html += `<div class="wine-card">
             if(d && (d.s || d.n || (enableScoring && d.score))) {
                 count++;
                 reportText += `🍷 ${wine.name.toUpperCase()}\n`;
-                
-                // Only include score in text if scoring is enabled
                 if(enableScoring) reportText += `SCORE: ${d.score}/20.0\n`;
-                
                 reportText += `RATING: ${d.s==='L'?'LIKE':(d.s==='M'?'MAYBE':'N/A')}\n${d.n ? 'NOTE: '+d.n+'\n' : ''}--------------------------\n\n`;
             }
         });
@@ -271,7 +264,7 @@ html += `<div class="wine-card">
         let html = '';
         data.forEach((val, idx) => {
             if(val && val.trim() !== "" && val.toLowerCase() !== "n/a") {
-                generaterep `<div class="data-item"><span class="data-label">${descHeaders[idx]}</span>${val}</div>`;
+                html += `<div class="data-item"><span class="data-label">${descHeaders[idx]}</span>${val}</div>`;
             }
         });
         document.getElementById('modal-data').innerHTML = html;
