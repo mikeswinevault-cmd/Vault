@@ -188,7 +188,8 @@
             
             const isBlind = /^[WR]\d+$/i.test(wine.name.trim());
             const s = state[wine.id] || { s: null, n: "", score: "15.0" };
-            const hasDesc = descriptorsMap[wine.name.toLowerCase()];
+// Strip quotes from the name before checking the map
+const hasDesc = descriptorsMap[wine.name.replace(/"/g, '').toLowerCase()];
             const isApproved = wine.link && wine.link.toLowerCase().startsWith('http');
 
             html += `<div class="wine-card">
