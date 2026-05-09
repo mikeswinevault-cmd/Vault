@@ -129,42 +129,45 @@
     }
 
     function applyData(data) {
-        const settings = {};
-        parseCSV(data.setText).forEach(cols => { if (cols[0] && cols[1]) settings[cols[0]] = cols[1]; });
+    const settings = {};
+    parseCSV(data.setText).forEach(cols => { if (cols[0] && cols[1]) settings[cols[0]] = cols[1]; });
 
-        // SET GLOBAL SETTINGS
-        enableScoring = settings['Enable Scoring'] && settings['Enable Scoring'].toString().toUpperCase() === 'TRUE';
-        
-        const batchId = settings['Batch ID'] || 'v1';
-        window.currentStorageKey = 'vault_' + SHEET_KEY + '_' + batchId;
-        state = JSON.parse(localStorage.getItem(window.currentStorageKey)) || {};
+    enableScoring = settings['Enable Scoring'] && settings['Enable Scoring'].toString().toUpperCase() === 'TRUE';
+    
+    const batchId = settings['Batch ID'] || 'v1';
+    window.currentStorageKey = 'vault_' + SHEET_KEY + '_' + batchId;
+    state = JSON.parse(localStorage.getItem(window.currentStorageKey)) || {};
 
-        if (settings['Store Name']) {
-            currentStore = settings['Store Name'];
-            document.getElementById('store-name-display').innerText = currentStore;
-            document.title = currentStore + " Vault";
-        }
-        if (settings['Accent Color']) document.documentElement.style.setProperty('--accent', settings['Accent Color']);
-        if (settings['Logo URL']) {
-            const img = document.getElementById('logo');
-            img.src = settings['Logo URL']; img.style.display = 'block';
-        }
+    if (settings['Store Name']) {
+        currentStore = settings['Store Name'];
+        document.getElementById('store-name-display').innerText = currentStore;
+        document.title = currentStore + " Vault";
+    }
 
-        // WINE LIST (Col A: Name, Col B: Link)
-        wineList = parseCSV(data.wineText).slice(1).filter(cols => cols[0] && cols[0] !== "Wine Name").map((cols, i) => ({
-            id: "w_" + i, name: cols[0], link: cols[1] || ""
+    // 1. CLEAN WINE LIST (Remove ALL quotes for matching)
+    wineList = parseCSV(data.wineText).slice(1)
+        .filter(cols => cols[0] && cols[0].trim() !== "" && cols[0] !== "Wine Name")
+        .map((cols, i) => ({
+            id: "w_" + i, 
+            name: cols[0].trim().replace(/"/g, ''), // Strip quotes for display
+            link: cols[1] || ""
         }));
 
-        // DESCRIPTORS (Cols C-I: Viticulture, Vines, Oak, Yeast, Aromas, Price, Vintage)
-        const dData = parseCSV(data.descText);
-        if(dData.length > 0) {
-            descHeaders = dData[0].slice(2, 9); 
-            dData.slice(1).forEach(cols => {
-                if (cols[0]) descriptorsMap[cols[0].toLowerCase()] = cols.slice(2, 9);
-            });
-        }
-        render();
+    // 2. CLEAN DESCRIPTORS MAP
+    const dData = parseCSV(data.descText);
+    descriptorsMap = {}; 
+    if(dData.length > 0) {
+        descHeaders = dData[0].slice(2, 9); 
+        dData.slice(1).forEach(cols => {
+            if (cols[0]) {
+                // Strip quotes and spaces from the key to guarantee a match
+                const cleanKey = cols[0].toString().replace(/"/g, '').trim().toLowerCase();
+                descriptorsMap[cleanKey] = cols.slice(2, 9);
+            }
+        });
     }
+    render();
+}
 
     function generateScoreOptions(currentScore) {
         let options = '';
