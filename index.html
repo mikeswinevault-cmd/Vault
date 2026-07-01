@@ -247,19 +247,34 @@ const hasDesc = descriptorsMap[wine.name.replace(/"/g, '').toLowerCase()];
     };
 
     function generateReport() {
-        let reportText = `==========================\n${currentStore.toUpperCase()} REPORT\n==========================\n\n`;
-        let count = 0;
-        wineList.forEach(wine => {
-            const d = state[wine.id];
-            if(d && (d.s || d.n || (enableScoring && d.score))) {
-                count++;
-                reportText += `🍷 ${wine.name.toUpperCase()}\n`;
-                if(enableScoring) reportText += `SCORE: ${d.score}/20.0\n`;
-                reportText += `RATING: ${d.s==='L'?'LIKE':(d.s==='M'?'MAYBE':'N/A')}\n${d.n ? 'NOTE: '+d.n+'\n' : ''}--------------------------\n\n`;
+    let reportText = `==========================\n${currentStore.toUpperCase()} REPORT\n==========================\n\n`;
+    let count = 0;
+    
+    wineList.forEach(wine => {
+        const d = state[wine.id];
+        // Safely check if data exists for this wine row
+        if (d && (d.s || d.n || (enableScoring && d.score))) {
+            count++;
+            reportText += `🍷 ${wine.name.toUpperCase()}\n`;
+            
+            // Safe evaluation of scoring
+            if (enableScoring && d.score) {
+                reportText += `SCORE: ${d.score}/20.0\n`;
             }
-        });
-        return { reportText, count };
-    }
+            
+            let rating = 'N/A';
+            if (d.s === 'L') rating = 'LIKE';
+            if (d.s === 'M') rating = 'MAYBE';
+            
+            reportText += `RATING: ${rating}\n`;
+            if (d.n && d.n.trim() !== "") {
+                reportText += `NOTE: ${d.n}\n`;
+            }
+            reportText += `--------------------------\n\n`;
+        }
+    });
+    return { reportText, count };
+}
 
     function openDescriptors(wineName) {
         const data = descriptorsMap[wineName.toLowerCase()];
