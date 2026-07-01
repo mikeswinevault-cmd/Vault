@@ -274,34 +274,32 @@ const hasDesc = descriptorsMap[wine.name.replace(/"/g, '').toLowerCase()];
         return alert("No notes to email!");
     }
     
-    // Attempt standard mail link first
-    const mailtoLink = document.createElement('a');
-    mailtoLink.href = `mailto:?subject=Tasting Report&body=${encodeURIComponent(r.reportText)}`;
-    mailtoLink.style.display = 'none';
-    document.body.appendChild(mailtoLink);
-    
-    try {
+    // 1. Instantly copy the massive formatted report to the clipboard
+    navigator.clipboard.writeText(r.reportText).then(() => {
+        
+        // 2. Open a short, safe mail window that won't exceed browser limits
+        const safeMailto = `mailto:?subject=${encodeURIComponent(currentStore + ' Tasting Report')}&body=Pasted your copied notes here (Ctrl+V or Cmd+V):`;
+        
+        const mailtoLink = document.createElement('a');
+        mailtoLink.href = safeMailto;
+        mailtoLink.style.display = 'none';
+        document.body.appendChild(mailtoLink);
         mailtoLink.click();
         document.body.removeChild(mailtoLink);
         
-        // Safety prompt for desktop browsers where mailto links fire silently or fail
+        // 3. Prompt the user for a clean reset
         setTimeout(() => {
-            const confirmed = confirm("Tasting report sent to email client!\n\nWould you like to clear your notes and start a fresh session?");
+            const confirmed = confirm("Report text copied to clipboard, and email window opened!\n\nJust press Paste (Ctrl+V / Cmd+V) inside your email body.\n\nWould you like to clear the ledger data now?");
             if (confirmed) {
                 state = {};
                 localStorage.removeItem(window.currentStorageKey);
                 render();
             }
-        }, 500);
+        }, 600);
         
-    } catch (e) {
-        // Fallback: Display text directly if Chrome crashes or cancels the link protocol
-        document.body.removeChild(mailtoLink);
-        alert("Your browser blocked the email client application.\n\nCopying report data to your clipboard as a fallback...");
-        navigator.clipboard.writeText(r.reportText).then(() => {
-            alert("Report successfully copied to your clipboard instead! You can paste it directly into an email manually.");
-        });
-    }
+    }).catch(err => {
+        alert("Permissions error: Clipboard access blocked.");
+    });
 };
     
 
