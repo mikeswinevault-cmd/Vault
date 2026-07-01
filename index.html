@@ -122,18 +122,19 @@
     }
 
     async function loadData() {
-        const baseUrl = `https://docs.google.com/spreadsheets/d/e/${SHEET_KEY}/pub?output=csv`;
-        try {
-            const res = await Promise.all([
-                fetch(`${baseUrl}&gid=${SETTINGS_GID}`),
-                fetch(`${baseUrl}&gid=0`),
-                fetch(`${baseUrl}&gid=${DESCRIPTORS_GID}`)
-            ]);
-            const freshData = { setText: await res[0].text(), wineText: await res[1].text(), descText: await res[2].text() };
-            localStorage.setItem('cache_' + SHEET_KEY, JSON.stringify(freshData));
-            applyData(freshData);
-        } catch (e) { console.error("Load Error:", e); }
-    }
+    // Correct endpoint structure for standard Spreadsheet IDs
+    const baseUrl = `https://docs.google.com/spreadsheets/d/${SHEET_KEY}/gviz/tq?tqx=out:csv`;
+    try {
+        const res = await Promise.all([
+            fetch(`${baseUrl}&gid=${SETTINGS_GID}`),
+            fetch(`${baseUrl}&gid=0`),
+            fetch(`${baseUrl}&gid=${DESCRIPTORS_GID}`)
+        ]);
+        const freshData = { setText: await res[0].text(), wineText: await res[1].text(), descText: await res[2].text() };
+        localStorage.setItem('cache_' + SHEET_KEY, JSON.stringify(freshData));
+        applyData(freshData);
+    } catch (e) { console.error("Load Error:", e); }
+}
 
     function applyData(data) {
     const settings = {};
