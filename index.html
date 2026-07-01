@@ -87,7 +87,14 @@
     let enableScoring = false; 
 
     async function init() {
-        if (!SHEET_KEY) return;
+        if (!SHEET_KEY) {
+            // Friendly alert if the ID is missing from the URL
+            document.getElementById('container').innerHTML = 
+                `<p style="text-align:center; color:#d32f2f; padding: 20px; font-weight: bold;">
+                    ⚠️ App Configuration Error:<br>Spreadsheet ID missing from the URL link.
+                 </p>`;
+            return;
+        }
 
         // 1. Admin Tagging Logic
         if (urlParams.get('admin') === 'true') {
