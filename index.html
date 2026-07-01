@@ -274,15 +274,36 @@ const hasDesc = descriptorsMap[wine.name.replace(/"/g, '').toLowerCase()];
         return alert("No notes to email!");
     }
     
-    // Create a temporary hidden link element to safely route out of Chrome
+    // Attempt standard mail link first
     const mailtoLink = document.createElement('a');
     mailtoLink.href = `mailto:?subject=Tasting Report&body=${encodeURIComponent(r.reportText)}`;
     mailtoLink.style.display = 'none';
-    
     document.body.appendChild(mailtoLink);
-    mailtoLink.click(); // Force interaction check
-    document.body.removeChild(mailtoLink);
+    
+    try {
+        mailtoLink.click();
+        document.body.removeChild(mailtoLink);
+        
+        // Safety prompt for desktop browsers where mailto links fire silently or fail
+        setTimeout(() => {
+            const confirmed = confirm("Tasting report sent to email client!\n\nWould you like to clear your notes and start a fresh session?");
+            if (confirmed) {
+                state = {};
+                localStorage.removeItem(window.currentStorageKey);
+                render();
+            }
+        }, 500);
+        
+    } catch (e) {
+        // Fallback: Display text directly if Chrome crashes or cancels the link protocol
+        document.body.removeChild(mailtoLink);
+        alert("Your browser blocked the email client application.\n\nCopying report data to your clipboard as a fallback...");
+        navigator.clipboard.writeText(r.reportText).then(() => {
+            alert("Report successfully copied to your clipboard instead! You can paste it directly into an email manually.");
+        });
+    }
 };
+    
 
     function generateReport() {
     let reportText = `==========================\n${currentStore.toUpperCase()} REPORT\n==========================\n\n`;
