@@ -243,10 +243,30 @@ const hasDesc = descriptorsMap[wine.name.replace(/"/g, '').toLowerCase()];
     };
 
     window.copyToClipboard = function() {
-        const r = generateReport();
-        if(r.count === 0) return alert("No notes to copy!");
-        navigator.clipboard.writeText(r.reportText).then(() => alert("Report copied!"));
+    const r = generateReport();
+    if (r.count === 0) {
+        return alert("No notes or ratings to copy!");
     }
+    
+    // 1. Copy the data to the clipboard
+    navigator.clipboard.writeText(r.reportText).then(() => {
+        // 2. Ask the user if they want to clear everything
+        const shouldClear = confirm("Report copied to clipboard!\n\nWould you like to clear your notes and ratings to start a fresh tasting session?");
+        
+        if (shouldClear) {
+            // Clear the local state for this specific batch
+            state = {};
+            localStorage.removeItem(window.currentStorageKey);
+            
+            // Redraw the screen to reset buttons, scores, and textareas
+            render();
+            
+            alert("Ledger cleared! Ready for the next tasting.");
+        }
+    }).catch(err => {
+        alert("Could not copy report automatically. Please use the Email button or check browser permissions.");
+    });
+}
 
     window.sendEmail = function() {
         const r = generateReport();
