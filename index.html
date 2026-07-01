@@ -269,10 +269,20 @@ const hasDesc = descriptorsMap[wine.name.replace(/"/g, '').toLowerCase()];
 }
 
     window.sendEmail = function() {
-        const r = generateReport();
-        if(r.count === 0) return alert("No notes to email!");
-        window.location.href = `mailto:?subject=Tasting Report&body=${encodeURIComponent(r.reportText)}`;
-    };
+    const r = generateReport();
+    if (r.count === 0) {
+        return alert("No notes to email!");
+    }
+    
+    // Create a temporary hidden link element to safely route out of Chrome
+    const mailtoLink = document.createElement('a');
+    mailtoLink.href = `mailto:?subject=Tasting Report&body=${encodeURIComponent(r.reportText)}`;
+    mailtoLink.style.display = 'none';
+    
+    document.body.appendChild(mailtoLink);
+    mailtoLink.click(); // Force interaction check
+    document.body.removeChild(mailtoLink);
+};
 
     function generateReport() {
     let reportText = `==========================\n${currentStore.toUpperCase()} REPORT\n==========================\n\n`;
