@@ -271,34 +271,43 @@ const hasDesc = descriptorsMap[wine.name.replace(/"/g, '').toLowerCase()];
     window.sendEmail = function() {
     const r = generateReport();
     if (r.count === 0) {
-        return alert("No notes to email!");
+        return alert("No notes to export!");
     }
     
-    // 1. Instantly copy the massive formatted report to the clipboard
+    // 1. Copy text silently to clipboard right away as a guarantee
     navigator.clipboard.writeText(r.reportText).then(() => {
         
-        // 2. Open a short, safe mail window that won't exceed browser limits
-        const safeMailto = `mailto:?subject=${encodeURIComponent(currentStore + ' Tasting Report')}&body=Pasted your copied notes here (Ctrl+V or Cmd+V):`;
+        // 2. Instead of calling a broken system link, show a clean, native modal popup
+        document.getElementById('modal-wine-name').innerText = "📋 Tasting Report Ready!";
         
-        const mailtoLink = document.createElement('a');
-        mailtoLink.href = safeMailto;
-        mailtoLink.style.display = 'none';
-        document.body.appendChild(mailtoLink);
-        mailtoLink.click();
-        document.body.removeChild(mailtoLink);
+        // Format the text nicely inside the existing modal grid
+        document.getElementById('modal-data').innerHTML = `
+            <div style="grid-column: 1 / -1; background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
+                <p style="margin-top:0; font-weight:bold; color:#2e7d32;">✓ Report copied to your device clipboard!</p>
+                <p style="font-size: 13px; color: #555; line-height:1.5;">
+                    Your desktop browser blocked your system email program from launching automatically. 
+                    <br><br>
+                    <strong>What to do next:</strong> Open your email (Gmail, Outlook, etc.), create a new message, click inside the message body, and press <strong>Ctrl + V</strong> (or <strong>Cmd + V</strong> on Mac) to paste your complete report.
+                </p>
+                <textarea readonly style="height: 120px; font-family: monospace; font-size: 12px; margin-top: 10px; background:#fff;" onclick="this.select()">${r.reportText}</textarea>
+            </div>
+        `;
         
-        // 3. Prompt the user for a clean reset
+        // Show the overlay card
+        document.getElementById('modal-overlay').style.display = 'flex';
+        
+        // 3. Prompt to clear the ledger data safely behind it
         setTimeout(() => {
-            const confirmed = confirm("Report text copied to clipboard, and email window opened!\n\nJust press Paste (Ctrl+V / Cmd+V) inside your email body.\n\nWould you like to clear the ledger data now?");
+            const confirmed = confirm("Report text secured to clipboard!\n\nWould you like to clear the ledger selections and start fresh now?");
             if (confirmed) {
                 state = {};
                 localStorage.removeItem(window.currentStorageKey);
                 render();
             }
-        }, 600);
+        }, 800);
         
     }).catch(err => {
-        alert("Permissions error: Clipboard access blocked.");
+        alert("Permissions error: Clipboard access blocked by browser configuration.");
     });
 };
     
