@@ -274,44 +274,72 @@ const hasDesc = descriptorsMap[wine.name.replace(/"/g, '').toLowerCase()];
         return alert("No notes to export!");
     }
 
-    // Flag to track if the protocol works natively
-    let mailtoTriggered = false;
+    let launchedSuccessfully = false;
 
-    // 1. Create the link element
+    // Track if the app successfully shifts background focus to an email app (Mobile behavior)
+    window.onblur = function() {
+        launchedSuccessfully = true;
+    };
+
+    // 1. Create and fire the standard email link right away
     const mailtoLink = document.createElement('a');
     mailtoLink.href = `mailto:?subject=${encodeURIComponent(currentStore + ' Tasting Report')}&body=${encodeURIComponent(r.reportText)}`;
     mailtoLink.style.display = 'none';
     document.body.appendChild(mailtoLink);
+    mailtoLink.click();
 
-    // Set a timer: If the browser doesn't break away or freeze within 400ms, assume it worked (Mobile)
-    const fallbackTimer = setTimeout(() => {
-        mailtoTriggered = true;
-        document.body.removeChild(mailtoLink);
+    // 2. The Wait Timer: If the page doesn't lose focus within 500ms, handle as Desktop Chrome
+    setTimeout(() => {
+        // Clean up the anchor tag from the DOM background
+        if (document.body.contains(mailtoLink)) {
+            document.body.removeChild(mailtoLink);
+        }
+
+        if (launchedSuccessfully) {
+            // --- MOBILE CONFIRMATION FLOW ---
+            setTimeout(() => {
+                const confirmed = confirm("Tasting report sent to email client!\n\nWould you like to clear your notes and start a fresh session?");
+                if (confirmed) {
+                    state = {};
+                    localStorage.removeItem(window.currentStorageKey);
+                    render();
+                }
+            }, 300);
+        } else {
+            // --- DESKTOP FALLBACK OVERLAY FLOW ---
+            navigator.clipboard.writeText(r.reportText).then(() => {
+                document.getElementById('modal-wine-name').innerText = "📋 Tasting Report Ready!";
+                document.getElementById('modal-data').innerHTML = `
+                    <div style="grid-column: 1 / -1; background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
+                        <p style="margin-top:0; font-weight:bold; color:#2e7d32;">✓ Report copied to your device clipboard!</p>
+                        <p style="font-size: 13px; color: #555; line-height:1.5;">
+                            Your desktop browser blocked your system email program from launching automatically. 
+                            <br><br>
+                            <strong>What to do next:</strong> Open your email client, create a new message, click inside the message body, and press <strong>Ctrl + V</strong> (or <strong>Cmd + V</strong> on Mac) to paste your report.
+                        </p>
+                        <textarea readonly style="height: 120px; font-family: monospace; font-size: 12px; margin-top: 10px; background:#fff;" onclick="this.select()">${r.reportText}</textarea>
+                    </div>
+                `;
+                document.getElementById('modal-overlay').style.display = 'flex';
+                
+                setTimeout(() => {
+                    const confirmed = confirm("Report text secured to clipboard!\n\nWould you like to clear the ledger selections and start fresh now?");
+                    if (confirmed) {
+                        state = {};
+                        localStorage.removeItem(window.currentStorageKey);
+                        render();
+                    }
+                }, 500);
+            }).catch(() => {
+                alert("Clipboard access denied by browser permissions.");
+            });
+        }
         
-        // Mobile cleanup flow
-        setTimeout(() => {
-            const confirmed = confirm("Tasting report sent to email client!\n\nWould you like to clear your notes and start a fresh session?");
-            if (confirmed) {
-                state = {};
-                localStorage.removeItem(window.currentStorageKey);
-                render();
-            }
-        }, 600);
-    }, 400);
-
-    try {
-        mailtoLink.click();
-    } catch (e) {
-        // Instant catch blocks
-        clearTimeout(fallbackTimer);
-        triggerDesktopFallback(r.reportText);
-    }
-
-    // Window focus listener: If we stay on the same page and it errored silently (Desktop Chrome behavior)
-    window.onblur = function() {
-        // App safely lost focus -> mail client opened successfully!
-        clearTimeout(fallbackTimer);
-    };
+        // Reset the focus listener
+        window.onblur = null;
+    }, 500);
+};
+    
     
     // Fallback UI generation
     function triggerDesktopFallback(reportText) {
