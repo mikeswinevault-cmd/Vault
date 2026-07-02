@@ -273,20 +273,22 @@ const hasDesc = descriptorsMap[wine.name.replace(/"/g, '').toLowerCase()];
     if (r.count === 0) {
         return alert("No notes to export!");
     }
-    
-    // Detect if the user is on a mobile device (Android, iPhone, iPad)
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    
-    if (isMobile) {
-        // --- MOBILE FLOW (Native App Selector) ---
-        const mailtoLink = document.createElement('a');
-        mailtoLink.href = `mailto:?subject=${encodeURIComponent(currentStore + ' Tasting Report')}&body=${encodeURIComponent(r.reportText)}`;
-        mailtoLink.style.display = 'none';
-        document.body.appendChild(mailtoLink);
-        mailtoLink.click();
+
+    // Flag to track if the protocol works natively
+    let mailtoTriggered = false;
+
+    // 1. Create the link element
+    const mailtoLink = document.createElement('a');
+    mailtoLink.href = `mailto:?subject=${encodeURIComponent(currentStore + ' Tasting Report')}&body=${encodeURIComponent(r.reportText)}`;
+    mailtoLink.style.display = 'none';
+    document.body.appendChild(mailtoLink);
+
+    // Set a timer: If the browser doesn't break away or freeze within 400ms, assume it worked (Mobile)
+    const fallbackTimer = setTimeout(() => {
+        mailtoTriggered = true;
         document.body.removeChild(mailtoLink);
         
-        // Mobile clean-up prompt
+        // Mobile cleanup flow
         setTimeout(() => {
             const confirmed = confirm("Tasting report sent to email client!\n\nWould you like to clear your notes and start a fresh session?");
             if (confirmed) {
@@ -294,11 +296,30 @@ const hasDesc = descriptorsMap[wine.name.replace(/"/g, '').toLowerCase()];
                 localStorage.removeItem(window.currentStorageKey);
                 render();
             }
-        }, 1000); // Slightly longer delay to let mobile apps context-switch safely
-        
-    } else {
-        // --- DESKTOP FALLBACK FLOW (Clipboard + Instructions Modal) ---
-        navigator.clipboard.writeText(r.reportText).then(() => {
+        }, 600);
+    }, 400);
+
+    try {
+        mailtoLink.click();
+    } catch (e) {
+        // Instant catch blocks
+        clearTimeout(fallbackTimer);
+        triggerDesktopFallback(r.reportText);
+    }
+
+    // Window focus listener: If we stay on the same page and it errored silently (Desktop Chrome behavior)
+    window.onblur = function() {
+        // App safely lost focus -> mail client opened successfully!
+        clearTimeout(fallbackTimer);
+    };
+    
+    // Fallback UI generation
+    function triggerDesktopFallback(reportText) {
+        if(mailtoTriggered) return;
+        clearTimeout(fallbackTimer);
+        if(document.body.contains(mailtoLink)) document.body.removeChild(mailtoLink);
+
+        navigator.clipboard.writeText(reportText).then(() => {
             document.getElementById('modal-wine-name').innerText = "📋 Tasting Report Ready!";
             document.getElementById('modal-data').innerHTML = `
                 <div style="grid-column: 1 / -1; background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
@@ -308,7 +329,7 @@ const hasDesc = descriptorsMap[wine.name.replace(/"/g, '').toLowerCase()];
                         <br><br>
                         <strong>What to do next:</strong> Open your email client, create a new message, click inside the message body, and press <strong>Ctrl + V</strong> (or <strong>Cmd + V</strong> on Mac) to paste your report.
                     </p>
-                    <textarea readonly style="height: 120px; font-family: monospace; font-size: 12px; margin-top: 10px; background:#fff;" onclick="this.select()">${r.reportText}</textarea>
+                    <textarea readonly style="height: 120px; font-family: monospace; font-size: 12px; margin-top: 10px; background:#fff;" onclick="this.select()">${reportText}</textarea>
                 </div>
             `;
             document.getElementById('modal-overlay').style.display = 'flex';
@@ -321,8 +342,6 @@ const hasDesc = descriptorsMap[wine.name.replace(/"/g, '').toLowerCase()];
                     render();
                 }
             }, 800);
-        }).catch(err => {
-            alert("Permissions error: Clipboard access blocked.");
         });
     }
 };
